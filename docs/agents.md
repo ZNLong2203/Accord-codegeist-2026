@@ -1,6 +1,6 @@
 # Rovo agent and Atlassian MCP
 
-The manifest defines a Rovo agent and exposes three existing Forge actions via
+The manifest defines a Rovo agent and exposes four existing Forge actions via
 `rovo:mcp`. Both use the same source service and deterministic evaluator as the
 Custom UI. There is no separate external MCP server or client-side API secret.
 
@@ -9,6 +9,10 @@ Custom UI. There is no separate external MCP server or client-side API secret.
 | `inspect-release` | `anchorIssue`                                 | Current assessment, evidence, scope and snapshot label               |
 | `simulate-scope`  | `anchorIssue`, comma-separated `excludedKeys` | Recomputed hypothetical assessment; explicitly labelled as simulated |
 | `suggest-scope`   | `anchorIssue`                                 | Minimum-cost qualifying deferral, or null if unavailable             |
+
+`decision-change` takes `anchorIssue` and a selected numeric `pageId`. It returns
+reviewed/current versions, source excerpts and structured contract differences.
+Unreadable or unselected sources are rejected. It cannot adopt a new baseline.
 
 All actions declare `actionVerb: GET`, call product APIs as the user, and are
 read-only. They cannot save a baseline, write comments, edit Jira, or approve a

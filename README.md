@@ -37,21 +37,37 @@ The demo persists evidence changes and review records in this browser only.
 
 ## What is implemented
 
-| Capability                              | Local demo                | Forge implementation                                             |
-| --------------------------------------- | ------------------------- | ---------------------------------------------------------------- |
-| Decision version and commitment checks  | Working                   | Jira/Confluence REST adapters                                    |
-| Evidence map, source inspector, library | Working                   | Same Custom UI                                                   |
-| Reversible scope scenarios              | Working                   | Same deterministic evaluator                                     |
-| Minimum-cost deferral search            | Working, weighted fixture | Uniform item cost; up to 15 scope items                          |
-| Human decision record                   | Browser storage           | User-authored Jira comment after fresh evidence comparison       |
-| Rovo agent and three read-only actions  | Not simulated             | Declared and implemented; tenant verification pending            |
-| Atlassian MCP tools                     | Not simulated             | `rovo:mcp` reuses the three actions; tenant verification pending |
+| Capability                              | Local demo                | Forge implementation                                            |
+| --------------------------------------- | ------------------------- | --------------------------------------------------------------- |
+| Decision version and commitment checks  | Working                   | Jira/Confluence REST adapters                                   |
+| Evidence map, source inspector, library | Working                   | Same Custom UI                                                  |
+| Reversible scope scenarios              | Working                   | Same deterministic evaluator                                    |
+| Minimum-cost deferral search            | Working, weighted fixture | Uniform item cost; up to 15 scope items                         |
+| Human decision record                   | Browser storage           | User-authored Jira comment after fresh evidence comparison      |
+| Rovo agent and four read-only actions   | Not simulated             | Declared and implemented; tenant verification pending           |
+| Atlassian MCP tools                     | Not simulated             | `rovo:mcp` reuses the four actions; tenant verification pending |
 
 **Deployment status:** local build, unit/adapter tests and Atlassian's installed
 manifest validators pass. This repository has not yet been registered, deployed
 or installed on an Atlassian tenant. The manifest has a documented placeholder
 app ID. Authenticated `forge lint`, installation, cross-product permissions,
 Rovo and MCP need verification on a developer site. See [setup](docs/setup.md).
+
+## Review the change, not just the warning
+
+Use **Compare & review this decision** from an edited source. Accord shows source
+excerpts and explicit contract fields before and after, including added/removed
+commitments and applicability changes. A confirmed re-review adopts only that
+page's current version; other prerequisite and owner signals remain open.
+
+**Settings → Build a decision contract** provides editable templates, a validated
+JSON preview, copy/download, and a local demo-library action. No Confluence page
+is created without a real tenant. Teams still confirm the meaning of each rule.
+
+Live **Review history** reads paginated Jira comments and their structured Accord
+metadata as the current user. A retry identifier recovers an already recorded
+comment after an ambiguous response; concurrent requests are not guaranteed
+exactly-once. `npm run doctor` explains which tenant prerequisites remain.
 
 ## Architecture
 

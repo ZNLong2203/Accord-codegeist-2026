@@ -5,6 +5,7 @@
 ```sh
 npm ci
 npm run setup:hooks
+npm run doctor
 npm run dev
 ```
 
@@ -56,7 +57,8 @@ site; cross-site Confluence sources are not supported.
 2. Create a separate Jira task to hold the review configuration and comments.
 3. Create a prerequisite task, initially In progress, which need not be in the
    release. Mark its dependent scope task Done.
-4. Create a Confluence decision page containing the [JSON contract](contracts.md).
+4. Use Settings’ contract builder, then create a Confluence decision page containing
+   the [JSON contract](contracts.md).
    Use actual created issue keys; the fictional PLAT keys are not automatic seeds.
 5. Open **Jira → Apps → Accord → Settings**. Enter the project, version, review
    issue, target date and numeric Confluence page IDs.
@@ -91,3 +93,7 @@ products, setup steps, sample contracts and expected outcomes to reviewers.
 Do not submit a localhost URL as the Forge installation link. Production deploy,
 sharing, Marketplace listing and Devpost submission have not been performed by
 this initial local implementation.
+
+`npm run doctor -- --require-live` exits unsuccessfully when the app ID is still a
+placeholder or Forge login is unavailable. Normal `doctor` also works before
+registration and prints next steps without exposing account details or tokens.

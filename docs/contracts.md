@@ -5,7 +5,9 @@ selects a Confluence page with exactly one JSON code block, then explicitly adop
 the current page version as a release baseline. Baseline adoption requires edit
 permission on the Jira review issue and read permission on the selected pages.
 
-Create a normal Confluence **Code block**, paste the JSON below and publish the
+Use **Settings → Build a decision contract** for an editable template and validated
+JSON preview. Copy or download it, then create a normal Confluence **Code block**,
+paste the JSON and publish the
 page. The parser reads its storage-format CDATA body. Multiple candidate blocks,
 invalid JSON, unknown fields, duplicate rule IDs and oversized pages are rejected.
 
@@ -68,10 +70,11 @@ Examples for the additional rule types:
 1. Configure the release and adopt the page at version N in Accord Settings.
 2. Edit and publish the Confluence page to version N+1.
 3. Refresh Accord. Applicable scope receives a page-changed signal.
-4. Inspect the current and reviewed evidence. Changed rationale is shown, but the
-   app does not produce a full textual diff or classify semantic contradictions.
-5. After a human review, Settings can explicitly adopt the new baseline. This
-   replaces the shared configuration on the review issue; it does not happen when
+4. Inspect the current and reviewed evidence. The app shows explicit contract-field
+   differences and rationale excerpts, rather than a full page diff or a semantic verdict.
+5. Use **Compare & review this decision** to inspect field changes and explicitly
+   adopt the selected page’s new baseline after confirmation. This
+   updates only that page’s reviewed version and preserves other baselines; it does not happen when
    a comment is recorded.
 
 The rules for a review come from the **reviewed historical version**. The app does

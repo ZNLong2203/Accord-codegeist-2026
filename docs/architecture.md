@@ -81,9 +81,15 @@ own rationale before sharing it. Comments are mutable under Jira permissions.
 They are not tamper-proof signatures, an approval policy, or compliance evidence.
 
 Jira and Confluence do not share an atomic transaction with the comment write.
-Evidence can change after the final check, and a network retry can create a second
-comment. The UI disables repeated submissions while the request is in progress;
-it does not promise exactly-once delivery across retries or clients. The record
+Evidence can change after the final check. Each review request carries a UUID;
+the comment and structured metadata are created in one API request. Before a
+retry, the backend checks up to 100 recent visible comments for that UUID and
+returns an existing matching record. Different content under the same UUID is
+rejected. An unreadable or malformed history, or a lookup that reaches its bound,
+prevents a new write. The UI keeps the UUID during an open review and disables
+repeated submissions while saving. This reduces duplicates after an ambiguous
+network response; concurrent requests and eventual consistency still prevent an
+exactly-once guarantee across clients. The record
 describes what was observed, not a lock on the release.
 
 ## Operational bounds
@@ -97,3 +103,25 @@ describes what was observed, not a lock on the release.
 
 The application is not a Teamwork Graph integration. Rovo/MCP modules reuse the
 same product adapters and evaluator; see [agents](agents.md).
+
+## Source re-review and shared history
+
+Source comparison displays changes in title, owner, rationale, explicit issue
+applicability and individually identified rules. It does not interpret arbitrary
+page prose or label a change semantically safe. Confirmation re-reads the observed
+snapshot, adopts only the selected page version and preserves other baselines.
+The Jira configuration retains up to 50 adoption metadata entries (IDs, version
+numbers, time and caller ID), without source excerpts. Initial reconfiguration
+replaces this configuration; these are editable metadata, not an immutable audit.
+
+History follows visible Jira comments in pages of 20. Structured Accord properties
+are read through the dedicated comment-property API when not returned inline,
+with at most five concurrent reads. A missing property identifies a non-Accord
+comment; permission and network failures surface as errors. Comment bodies and
+properties are editable under Jira permissions, can be changed independently, and
+are not cryptographic attestations. Older comments without Accord metadata do not
+appear as structured review records. Refresh again if new comments shift offset
+pagination while reading older pages.
+
+API reference: [Jira comments](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/)
+and [comment properties](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comment-properties/).
