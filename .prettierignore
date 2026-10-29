@@ -1,0 +1,6 @@
+package-lock.json
+docs/images/
+scripts/hooks/
+private/
+dist/
+node_modules/
