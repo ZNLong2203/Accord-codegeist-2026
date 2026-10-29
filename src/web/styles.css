@@ -3045,12 +3045,12 @@ textarea {
 }
 .comment-preview pre {
   font:
-    9px/1.9 'DM Sans',
+    14px/1.7 'DM Sans',
     sans-serif;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 12px 0 0;
-  color: #849372;
+  color: #64715a;
 }
 @media (min-width: 1001px) {
   .nav-item {

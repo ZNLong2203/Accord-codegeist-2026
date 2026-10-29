@@ -82,6 +82,10 @@ site; cross-site Confluence sources are not supported.
 The local demo does not provision data in Atlassian. No script creates tenant data
 or changes production issues automatically.
 
+For a complete fixture and expected findings, follow the
+[reproducible tenant demo](live-demo.md). It uses explicitly fictional data in a
+developer site and the same evaluator as the local demo.
+
 ## Verify installation before distribution
 
 - A clean site with Jira and Confluence can install and connect both products.

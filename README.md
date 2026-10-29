@@ -50,8 +50,12 @@ The demo persists evidence changes and review records in this browser only.
 **Deployment status:** local build, unit/adapter tests and Atlassian's installed
 manifest validators pass. The app is registered and authenticated `forge lint`
 passes. A development deployment and installations in Jira and Confluence have
-succeeded on a developer site. Live workflows, per-user permissions, Rovo and
-MCP still need verification. See [setup](docs/setup.md).
+succeeded on a developer site. An authenticated browser walkthrough verified
+baseline setup/re-review, current/historical Confluence reads, prerequisite checks, source
+diffs, scope simulation, a confirmed Jira comment and shared history reload.
+Restricted-user permissions, Rovo and MCP still need verification. See
+[verification](docs/verification.md) and the
+[reproducible tenant demo](docs/live-demo.md).
 
 ## Review the change, not just the warning
 

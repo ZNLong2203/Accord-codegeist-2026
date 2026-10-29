@@ -55,17 +55,43 @@ See the repository history for the implementation corresponding to this record.
 No measured customer savings, model accuracy, adoption or release risk reduction
 has been established by these fixtures.
 
-## Outstanding external verification
+## Authenticated Forge walkthrough
 
 App registration, authenticated `forge lint` and a development deployment have
 passed. The first backend
 bundle exposed a TypeScript `noEmit` conflict with Forge's `ts-loader`; the shared
 configuration now permits emit while local type checks explicitly disable it.
 CLI 15 subsequently confirmed successful installations in Jira and Confluence
-on the same developer site. This confirms deployment and installation, not live
-workflow correctness. Browser verification requires an authenticated tenant
-session. Verify per-user scopes, Forge CSP, Rovo/MCP availability, and clean-tenant
-distribution before representing the app as a deployed submission.
+on the same developer site. An authenticated browser walkthrough then used
+fictional Jira and Confluence content, with the following observed results:
+
+| Flow                    | Observed result                                                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Load Custom UI          | Accord renders inside Jira with the Forge indicator                                                                                                       |
+| Adopt initial baseline  | Two published Confluence contracts are read and saved on the Jira review issue                                                                            |
+| Scan release            | Four included work items, three Done; prerequisite outside fixVersion is still checked                                                                    |
+| Initial findings        | One critical prerequisite signal and one ownership warning                                                                                                |
+| Publish source v2       | Refresh shows reviewed v1 and current v2, adding one critical page-change signal                                                                          |
+| Inspect source change   | Both historical/current rationales are readable; structured diff identifies one rationale change                                                          |
+| Find smallest deferral  | Evaluates 15 non-empty candidate scopes; deferring the affected session item leaves three included items, zero critical signals and one ownership warning |
+| Return to current scope | Reset and a fresh Forge scan restore four included items and all three signals                                                                            |
+| Read shared history     | Jira-backed history loads successfully and is initially empty                                                                                             |
+| Record decision         | After explicit human confirmation, one labelled demo HOLD comment is posted with four scope keys, three signals and the snapshot label                    |
+| Verify persistence      | The comment is visible in Jira itself; refreshing shared history reads the same record back from Jira                                                     |
+| Preview readability     | Comment preview increased from 9px to 14px with darker text; computed styles and wrapping verified locally and after Forge redeployment                   |
+| Re-review source v2     | Adopting only the security page clears the version signal while the prerequisite and ownership findings remain                                            |
+| Replay-ready state      | A subsequent source edit restores three signals with reviewed v2 and current v3; the earlier Jira comment remains in shared history                       |
+
+The source edit and scope simulation are independent: a simulation does not adopt
+a page version, complete a prerequisite, assign an owner or change Jira scope.
+The exact fixture and reproduction steps are in [live-demo.md](live-demo.md).
+
+## Outstanding external verification
+
+Single-user reads do not establish isolation for a second user with restricted
+access. Verify restricted-user behavior and stale writes,
+Rovo/MCP availability, and clean-tenant production distribution before treating
+those capabilities as tenant-verified.
 
 Also pending: feedback from release owners, larger real release scans, concurrent
 review behavior, network failures during comment posting, and Marketplace review.
