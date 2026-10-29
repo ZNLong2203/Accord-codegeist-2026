@@ -237,7 +237,8 @@ export function App() {
             <Layers3 size={16} />
           </span>
           <span>
-            Platform team<small>Engineering workspace</small>
+            {isLive ? (snapshot?.release.project ?? 'Atlassian') : 'Platform team'}
+            <small>{isLive ? 'Jira release workspace' : 'Engineering workspace'}</small>
           </span>
           <ChevronDown size={14} />
         </button>
