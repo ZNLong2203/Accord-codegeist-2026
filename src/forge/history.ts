@@ -62,12 +62,13 @@ export function commentRecord(
   anchor: string,
   siteUrl: string,
 ): DecisionRecord | null {
-  const metadata = reviewMetadata.safeParse(
-    (Array.isArray(comment.properties) ? comment.properties : []).find(
-      (property: any) => property.key === reviewPropertyKey,
-    )?.value,
+  const property = (Array.isArray(comment.properties) ? comment.properties : []).find(
+    (item: any) => item.key === reviewPropertyKey,
   );
-  if (!metadata.success || !comment.id || !comment.created) return null;
+  if (!property) return null;
+  const metadata = reviewMetadata.safeParse(property.value);
+  if (!metadata.success || !comment.id || !comment.created)
+    throw new Error('A Jira review has invalid metadata. Inspect its history before retrying.');
   return {
     id: String(comment.id),
     outcome: metadata.data.outcome,

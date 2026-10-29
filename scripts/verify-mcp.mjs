@@ -1,11 +1,7 @@
 import { createServer } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { once } from 'node:events';
-import {
-  Client,
-  StreamableHTTPClientTransport,
-  UnauthorizedError,
-} from '@modelcontextprotocol/client';
+import { Client, StreamableHTTPClientTransport, auth } from '@modelcontextprotocol/client';
 
 // Read-only, interactive tenant smoke test. Never reuse Forge CLI credentials.
 const args = process.argv.slice(2);
@@ -23,6 +19,7 @@ if (!/^[A-Z][A-Z0-9_]*-\d+$/.test(anchorIssue) || (pageId && !/^\d+$/.test(pageI
 
 const endpoint = new URL('https://mcp.atlassian.com/forge/f75a1254-6dee-42d5-9902-76d221db15cc');
 const expectedTools = ['inspect-release', 'simulate-scope', 'suggest-scope', 'decision-change'];
+const readScopes = ['read:jira-work', 'read:page:confluence'];
 const state = randomBytes(32).toString('base64url');
 let clientInfo, tokenSet, verifier, resolveCallback, rejectCallback;
 const callback = new Promise((resolve, reject) => {
@@ -60,9 +57,10 @@ const authProvider = {
   clientMetadata: {
     client_name: 'Accord read-only verification',
     redirect_uris: [redirectUrl],
-    grant_types: ['authorization_code', 'refresh_token'],
+    grant_types: ['authorization_code'],
     response_types: ['code'],
     token_endpoint_auth_method: 'none',
+    scope: readScopes.join(' '),
   },
   state: () => state,
   clientInformation: () => clientInfo,
@@ -80,6 +78,9 @@ const authProvider = {
   redirectToAuthorization: (url) => {
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.atlassian.com'))
       throw new Error('Unexpected authorization destination.');
+    const requested = (url.searchParams.get('scope') ?? '').split(' ').filter(Boolean);
+    if (!requested.length || requested.some((scope) => !readScopes.includes(scope)))
+      throw new Error('Authorization requested permissions beyond the read-only allowlist.');
     console.log('Open this Atlassian consent URL in your browser:');
     console.log(url.href);
   },
@@ -98,13 +99,21 @@ const deadline = setTimeout(
 );
 const timeout = { timeout: 30_000 };
 try {
-  try {
-    await client.connect(transport);
-  } catch (error) {
-    if (!(error instanceof UnauthorizedError)) throw error;
-    await transport.finishAuth(await callback);
-    await client.connect(transport);
+  // Explicit scope selection avoids adopting the server's broad advertised
+  // scope union (which includes unrelated write capabilities).
+  const authOptions = { serverUrl: endpoint, scope: readScopes.join(' ') };
+  if ((await auth(authProvider, authOptions)) === 'REDIRECT') {
+    const params = await callback;
+    if (
+      (await auth(authProvider, {
+        ...authOptions,
+        authorizationCode: params.get('code'),
+        ...(params.get('iss') ? { iss: params.get('iss') } : {}),
+      })) !== 'AUTHORIZED'
+    )
+      throw new Error('Authorization did not finish.');
   }
+  await client.connect(transport);
   let cursor;
   const tools = [];
   for (let page = 0; page < 10; page++) {

@@ -64,7 +64,9 @@ Substitute a configured review issue and a selected page ID on your own site.
 The script uses the official TypeScript MCP client, an ephemeral loopback OAuth
 callback, state validation and PKCE. Tokens and registration details stay in
 memory and disappear on exit. It lists the tools and calls only the four expected
-read-only actions. It does not automatically grant consent, write Jira, or change
+read-only actions. OAuth explicitly requests only `read:jira-work` and
+`read:page:confluence`; broader scope challenges fail rather than silently widen
+consent. The script requests no refresh token. It does not automatically grant consent, write Jira, or change
 Codex/Claude configuration. Tool responses can contain tenant content; do not
 publish terminal output. Compare findings and snapshot labels with the UI under
 the same user and unchanged evidence. The endpoint does not select the site:
@@ -74,3 +76,10 @@ select the intended site during OAuth consent.
 Custom UI have been tested on a developer tenant. Manifest validation and mocked
 shared backend tests pass. Rovo agent invocation and MCP client discovery/calls
 still require tenant verification. Local screens do not imitate AI responses.
+
+On the developer demo tenant, administrators have enabled MCP exposure for both
+development and production. Discovery reached the Atlassian OAuth consent page
+with the intended site and Read/Search permissions after explicitly narrowing
+scopes. Completing OAuth, tool discovery and tool calls remain separate checks.
+Rovo Studio currently presents no selectable site in the admin flow; this does
+not establish that the app agent itself has been invoked.

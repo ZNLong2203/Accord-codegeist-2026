@@ -380,6 +380,33 @@ describe('shared history and retry recovery', () => {
     expect(mocks.jira.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
   });
 
+  it.each([
+    { ...metadata, requestId: 'broken-request-id' },
+    { ...metadata, schemaVersion: 99 },
+    { ...metadata, schemaVersion: 2, rationaleLineCount: 0 },
+  ])('rejects malformed Accord metadata before allowing a retry write', async (invalid) => {
+    mocks.jira.mockResolvedValue(
+      response({
+        comments: [{ ...comment, properties: [{ key: reviewPropertyKey, value: invalid }] }],
+        total: 1,
+      }),
+    );
+    await expect(
+      recordDecision(
+        'PLAT-150',
+        {
+          requestId,
+          outcome: 'hold',
+          rationale: metadata.rationale,
+          snapshotToken: 'snapshot',
+        },
+        'https://demo.atlassian.net',
+      ),
+    ).rejects.toThrow('invalid metadata');
+    expect(mocks.jira.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
+    expect(mocks.confluence).not.toHaveBeenCalled();
+  });
+
   it('stops a retry lookup at its bound without creating a new comment', async () => {
     mocks.jira.mockResolvedValue(
       response({

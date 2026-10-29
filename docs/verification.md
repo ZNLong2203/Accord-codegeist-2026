@@ -5,7 +5,7 @@ Date: 30 October 2026, Asia/Ho_Chi_Minh.
 ## Automated checks
 
 `npm run check` runs TypeScript, Vitest, Vite production build and Atlassian's
-installed local manifest validators. The current suite contains **48 passing tests** in six files. The staged-file
+installed local manifest validators. The current suite contains **51 passing tests** in six files. The staged-file
 guard is also exercised in disposable Git repositories, including a staged secret
 whose working copy has already been cleaned. Coverage includes:
 
@@ -21,6 +21,7 @@ whose working copy has already been cleaned. Coverage includes:
 - Rejected stale review without a comment mutation.
 - A current explicit review producing the expected Jira comment payload.
 - Dedicated comment-property reads, shared history pagination and retry recovery.
+- Rejection of invalid Accord property metadata before any retry write.
 - Rejected reuse of a request ID with changed content; bounded, fail-closed lookups.
 - Source-field diffs and adoption leaving unrelated signals open.
 - Read-only agent change inspection rejecting inaccessible/unselected pages.
@@ -74,22 +75,26 @@ CLI 15 subsequently confirmed successful installations in Jira and Confluence
 on the same developer site. An authenticated browser walkthrough then used
 fictional Jira and Confluence content, with the following observed results:
 
-| Flow                    | Observed result                                                                                                                                           |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Load Custom UI          | Accord renders inside Jira with the Forge indicator                                                                                                       |
-| Adopt initial baseline  | Two published Confluence contracts are read and saved on the Jira review issue                                                                            |
-| Scan release            | Four included work items, three Done; prerequisite outside fixVersion is still checked                                                                    |
-| Initial findings        | One critical prerequisite signal and one ownership warning                                                                                                |
-| Publish source v2       | Refresh shows reviewed v1 and current v2, adding one critical page-change signal                                                                          |
-| Inspect source change   | Both historical/current rationales are readable; structured diff identifies one rationale change                                                          |
-| Find smallest deferral  | Evaluates 15 non-empty candidate scopes; deferring the affected session item leaves three included items, zero critical signals and one ownership warning |
-| Return to current scope | Reset and a fresh Forge scan restore four included items and all three signals                                                                            |
-| Read shared history     | Jira-backed history loads successfully and is initially empty                                                                                             |
-| Record decision         | After explicit human confirmation, one labelled demo HOLD comment is posted with four scope keys, three signals and the snapshot label                    |
-| Verify persistence      | The comment is visible in Jira itself; refreshing shared history reads the same record back from Jira                                                     |
-| Preview readability     | Comment preview increased from 9px to 14px with darker text; computed styles and wrapping verified locally and after Forge redeployment                   |
-| Re-review source v2     | Adopting only the security page clears the version signal while the prerequisite and ownership findings remain                                            |
-| Replay-ready state      | A subsequent source edit restores three signals with reviewed v2 and current v3; the earlier Jira comment remains in shared history                       |
+| Flow                     | Observed result                                                                                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Load Custom UI           | Accord renders inside Jira with the Forge indicator                                                                                                        |
+| Adopt initial baseline   | Two published Confluence contracts are read and saved on the Jira review issue                                                                             |
+| Scan release             | Four included work items, three Done; prerequisite outside fixVersion is still checked                                                                     |
+| Initial findings         | One critical prerequisite signal and one ownership warning                                                                                                 |
+| Publish source v2        | Refresh shows reviewed v1 and current v2, adding one critical page-change signal                                                                           |
+| Inspect source change    | Both historical/current rationales are readable; structured diff identifies one rationale change                                                           |
+| Find smallest deferral   | Evaluates 15 non-empty candidate scopes; deferring the affected session item leaves three included items, zero critical signals and one ownership warning  |
+| Return to current scope  | Reset and a fresh Forge scan restore four included items and all three signals                                                                             |
+| Read shared history      | Jira-backed history loads successfully and is initially empty                                                                                              |
+| Record decision          | After explicit human confirmation, one labelled demo HOLD comment is posted with four scope keys, three signals and the snapshot label                     |
+| Verify persistence       | The comment is visible in Jira itself; refreshing shared history reads the same record back from Jira                                                      |
+| Preview readability      | Comment preview increased from 9px to 14px with darker text; computed styles and wrapping verified locally and after Forge redeployment                    |
+| Re-review source v2      | Adopting only the security page clears the version signal while the prerequisite and ownership findings remain                                             |
+| Replay-ready state       | A subsequent source edit restores three signals with reviewed v2 and current v3; the earlier Jira comment remains in shared history                        |
+| Stale baseline rejection | A source changed from v3 to v4 while a v3 review remained open; adopting the old snapshot was rejected by the backend without changing the baseline        |
+| Current re-review        | Refresh and adoption of v4 succeed; prerequisite and ownership signals remain. A later v5 edit restores three signals for replay                           |
+| Production app           | Production 2.2.0 deploys and installs in Jira and Confluence; Custom UI loads four work items, reviewed v4/current v5 and the existing native HOLD record  |
+| Distribution page        | Sharing is enabled; the generated link opens the Accord install page with expected permissions and a site picker. No separate-tenant install was completed |
 
 The source edit and scope simulation are independent: a simulation does not adopt
 a page version, complete a prerequisite, assign an owner or change Jira scope.
@@ -98,8 +103,8 @@ The exact fixture and reproduction steps are in [live-demo.md](live-demo.md).
 ## Outstanding external verification
 
 Single-user reads do not establish isolation for a second user with restricted
-access. Verify restricted-user behavior and stale writes,
-Rovo/MCP availability, and clean-tenant production distribution before treating
+access. Verify restricted-user behavior, stale comment writes,
+Rovo/MCP invocation, and a complete clean-tenant production walkthrough before treating
 those capabilities as tenant-verified.
 
 Also pending: feedback from release owners, larger real release scans, concurrent

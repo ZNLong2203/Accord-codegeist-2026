@@ -1,0 +1,18 @@
+# Install Accord
+
+[Install Accord for Jira and Confluence](https://developer.atlassian.com/console/install/f75a1254-6dee-42d5-9902-76d221db15cc?signature=AYABeP5%2BmFMBzQMBrdjRfUnbNRQAAAADAAdhd3Mta21zAEthcm46YXdzOmttczp1cy13ZXN0LTI6NzA5NTg3ODM1MjQzOmtleS83MDVlZDY3MC1mNTdjLTQxYjUtOWY5Yi1lM2YyZGNjMTQ2ZTcAuAECAQB4CxqLTo9l4lqXuFjNim1xJM%2Bp%2F3TVP9xHS2BrU5DRRucB3XXQNZsR5754IU%2BGMj7HUAAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDOWE4hdSLjHnL9OMdgIBEIA79Vg%2BcPAKMA3CVkbRTYiVWHykEdm%2BUFMEl9UwRjn3fZO%2FXZLewTwpXb5NiQSEf6QJ1V0amZpaED360RkAB2F3cy1rbXMAS2Fybjphd3M6a21zOmV1LXdlc3QtMTo3MDk1ODc4MzUyNDM6a2V5LzQ2MzBjZTZiLTAwYzMtNGRlMi04NzdiLTYyN2UyMDYwZTVjYwC4AQICAHi9bVMAkme4qVQX1fQHo6ePw3H40A7cGfz7yrmSfBWMXgElEBlFlAcBEXe1uje7%2FMMkAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMhiDuGf88YsuYXcwmAgEQgDucoI29afF72AhJEhlNVFSCN4BmQAxFWaVzZWx5jsMZdkwRy7sWubY05OnXnZ0kD6Wi0AhmHd%2FoQyVlsgAHYXdzLWttcwBLYXJuOmF3czprbXM6dXMtZWFzdC0xOjcwOTU4NzgzNTI0MzprZXkvNmMxMjBiYTAtNGNkNS00OTg1LWI4MmUtNDBhMDQ5NTJjYzU3ALgBAgIAeDYASx0XCjkny4iLV6vz%2BKtEGSGT6kdt0QRpkn6D%2FlVEAWYO%2F0TtZ4JN6Sj4N6u3bkwAAAB%2BMHwGCSqGSIb3DQEHBqBvMG0CAQAwaAYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAwTIxOV3iMFBRifFqECARCAO8pjvTcn5e4KfW0GV8CD5MT4rs%2FsbNI2i6p4WYEMAsVXnaK8KxU8lie2wuppUk3ODllswk6Cer621pcKAgAAAAAMAAAQAAAAAAAAAAAAAAAAAJnej3Mi%2Fv8FZqbhI%2B%2BCnuT%2F%2F%2F%2F%2FAAAAAQAAAAAAAAAAAAAAAQAAADIHUNwVc6313vG8Uzq9fdpbtPLBpkZ86tPhNCRgoXzddzgRZEtuEgHq6CIs5qBc%2BCHJ%2ByMSAx0L0pFIKsUJTZY979k%3D&product=jira&product=confluence)
+
+This is an Atlassian-generated distribution link for the production app. It lets
+a site administrator review permissions and install Accord on their own site; it
+does not grant access to the project's developer demo site or its data.
+
+Choose your site, keep Jira selected and connect Confluence on the same site.
+Then follow the [judge walkthrough](judge-guide.md) and
+[reproducible fixture](live-demo.md). No sample data is created automatically.
+
+Verified on 30 October 2026: the link opens the Accord installation page, displays
+the expected Jira/Confluence permissions and lists the maintainer's eligible
+sites. Production is installed and exercised on the developer demo tenant. A
+complete install and fixture walkthrough on a separate clean tenant is still
+pending. This is distribution through a Forge installation link, not an
+Atlassian Marketplace listing.

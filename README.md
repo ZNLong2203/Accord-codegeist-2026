@@ -57,6 +57,12 @@ Restricted-user permissions, Rovo and MCP still need verification. See
 [verification](docs/verification.md) and the
 [reproducible tenant demo](docs/live-demo.md).
 
+The production app is also deployed and installed in both products. Its Custom UI
+loads the shared review and native Jira history. An Atlassian-generated
+[installation link](docs/install.md) is available for site administrators. A
+separate clean-tenant walkthrough remains pending; this is not a Marketplace
+listing.
+
 ## Review the change, not just the warning
 
 Use **Compare & review this decision** from an edited source. Accord shows source
@@ -115,6 +121,8 @@ model calls.
 ## Documentation
 
 - [Installation and tenant verification](docs/setup.md)
+- [Production installation link](docs/install.md)
+- [Judge walkthrough](docs/judge-guide.md)
 - [Architecture and permission boundaries](docs/architecture.md)
 - [Privacy and retained data](docs/privacy.md)
 - [Explicit decision contracts](docs/contracts.md)

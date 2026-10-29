@@ -101,14 +101,20 @@ developer site and the same evaluator as the local demo.
 
 ## Judge installation link
 
-After actual production deployment and clean-tenant verification, use Atlassian's
-[app distribution guide](https://developer.atlassian.com/platform/forge/distribute-your-apps/)
-to enable sharing and obtain an installation link. Supply the link, required
-products, setup steps, sample contracts and expected outcomes to reviewers.
+The registered Accord app has a [production installation link](install.md).
+Production is deployed and installed in Jira and Confluence on the developer
+demo tenant. Its review, source versions and native comment history load through
+the authenticated Custom UI. A complete walkthrough on a separate clean tenant
+is still pending. Follow the [judge guide](judge-guide.md) after installation.
 
-Do not submit a localhost URL as the Forge installation link. Production deploy,
-sharing, Marketplace listing and Devpost submission have not been performed by
-this initial local implementation.
+For independent registrations, follow Atlassian's
+[app distribution guide](https://developer.atlassian.com/platform/forge/distribute-your-apps/)
+after production deployment. Configure vendor/support/privacy details, enable
+sharing and generate a link including Jira and Confluence. Test the actual link
+and setup on a separate site before submission.
+
+Do not submit a localhost URL as the Forge installation link. Marketplace listing
+and Devpost submission have not been performed.
 
 `npm run doctor -- --require-live` exits unsuccessfully when the app ID is still a
 placeholder or Forge login is unavailable. Normal `doctor` also works before

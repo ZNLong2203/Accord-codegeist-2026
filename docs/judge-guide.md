@@ -7,8 +7,8 @@ required prerequisite remains open outside the release.
 ## Installation prerequisites
 
 Use an Atlassian Cloud site with Jira and Confluence, and an administrator who can
-install Forge apps. Install the production app using the project's distribution
-link when available. Connect **both Jira and Confluence on the same site**.
+install Forge apps. Use the [production installation link](install.md).
+Connect **both Jira and Confluence on the same site**.
 Installation does not create sample work or copy data from another tenant.
 Rovo and MCP are optional; the core review workflow works through the Jira app.
 
