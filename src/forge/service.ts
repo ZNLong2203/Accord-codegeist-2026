@@ -10,6 +10,7 @@ import {
 } from '../domain/schema';
 import { assess, buildDecisionText, snapshotId, snapshotToken } from '../domain/engine';
 import { parseContract } from '../domain/contracts';
+import { findRecordedRequest, reviewPropertyKey } from './history';
 
 const propertyKey = 'accord.configuration.v1';
 const storedSchema = z.object({
@@ -23,6 +24,18 @@ const storedSchema = z.object({
     )
     .min(1)
     .max(10),
+  reviews: z
+    .array(
+      z.object({
+        pageId: z.string().regex(/^\d+$/),
+        fromVersion: z.number().int(),
+        toVersion: z.number().int(),
+        reviewedAt: z.string(),
+        reviewerId: z.string().max(200),
+      }),
+    )
+    .max(50)
+    .optional(),
 });
 type Stored = z.infer<typeof storedSchema>;
 
@@ -141,6 +154,7 @@ export async function loadSnapshot(anchor: string, siteUrl: string): Promise<Sna
         reviewedExcerpt: reviewedContract.rationale,
         currentExcerpt: current.rationale,
         currentAppliesTo: current.appliesTo,
+        currentContract: current,
         updated: page.version?.createdAt ?? '',
         accessible: true,
         contract: reviewedContract,
@@ -186,7 +200,12 @@ export async function loadSnapshot(anchor: string, siteUrl: string): Promise<Sna
       }),
     });
     const page = await jsonResponse(response, 'Jira release search');
-    issues.push(...(page.issues ?? []).map((issue: any) => mapIssue(issue, true, siteUrl)));
+    for (const raw of page.issues ?? []) {
+      const issue = mapIssue(raw, true, siteUrl);
+      const duplicate = issues.findIndex((existing) => existing.key === issue.key);
+      if (duplicate === -1) issues.push(issue);
+      else issues[duplicate] = issue;
+    }
     nextPageToken = page.nextPageToken;
     if (!nextPageToken) break;
   }
@@ -237,9 +256,20 @@ export async function recordDecision(anchor: string, input: RecordInput, siteUrl
       outcome: z.enum(['hold', 'proceed_with_conditions']),
       rationale: z.string().trim().min(20).max(2000),
       snapshotToken: z.string().max(2_000_000),
+      requestId: z.uuid(),
     })
     .strict()
     .parse(input);
+  if (validated.requestId) {
+    const existing = await findRecordedRequest(anchor, siteUrl, validated.requestId);
+    if (existing) {
+      if (existing.outcome !== validated.outcome || existing.rationale !== validated.rationale)
+        throw new Error(
+          'This request was already recorded with different content. Start a new review.',
+        );
+      return existing;
+    }
+  }
   const current = await loadSnapshot(anchor, siteUrl);
   if (snapshotToken(current) !== validated.snapshotToken)
     throw new Error(
@@ -251,12 +281,29 @@ export async function recordDecision(anchor: string, input: RecordInput, siteUrl
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      ...(validated.requestId
+        ? {
+            properties: [
+              {
+                key: reviewPropertyKey,
+                value: {
+                  schemaVersion: 1,
+                  requestId: validated.requestId,
+                  outcome: validated.outcome,
+                  rationale: validated.rationale,
+                  snapshotId: snapshotId(current),
+                  findingCount: assess(current).findings.length,
+                },
+              },
+            ],
+          }
+        : {}),
       body: {
         type: 'doc',
         version: 1,
         content: buildDecisionText(current, validated)
           .split('\n')
-          .map((text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })),
+          .map((text) => ({ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] })),
       },
     }),
   });
@@ -270,5 +317,70 @@ export async function recordDecision(anchor: string, input: RecordInput, siteUrl
     snapshotId: snapshotId(current),
     findingCount: assess(current).findings.length,
     url: `${siteUrl}/browse/${anchor}?focusedCommentId=${comment.id}`,
+    requestId: validated.requestId,
   };
+}
+
+/** Re-review one selected page, preserving other baselines and source permissions. */
+export async function adoptBaseline(
+  anchor: string,
+  input: unknown,
+  siteUrl: string,
+  reviewerId: string,
+) {
+  const validated = z
+    .object({ pageId: z.string().regex(/^\d+$/), snapshotToken: z.string().max(2_000_000) })
+    .strict()
+    .parse(input);
+  const current = await loadSnapshot(anchor, siteUrl);
+  if (snapshotToken(current) !== validated.snapshotToken)
+    throw new Error('The evidence changed. Refresh before adopting a baseline.');
+  const decision = current.decisions.find((item) => item.pageId === validated.pageId);
+  if (!decision?.accessible || !decision.currentContract)
+    throw new Error('The current decision source is unavailable.');
+  const stored = await getStored(anchor);
+  const observedPages = new Set(current.decisions.map((item) => item.pageId));
+  if (
+    stored.configuration.project !== current.release.project ||
+    stored.configuration.version !== current.release.version ||
+    stored.configuration.targetDate !== current.release.targetDate ||
+    new Set(stored.configuration.pageIds).size !== observedPages.size ||
+    stored.configuration.pageIds.some((id) => !observedPages.has(id))
+  )
+    throw new Error('The release configuration changed. Refresh before reviewing.');
+  // Catch a configuration change between the source scan and the write preparation.
+  if (
+    !stored.baselines.some(
+      (b) => b.pageId === decision.pageId && b.version === decision.reviewedVersion,
+    )
+  )
+    throw new Error('The shared baseline changed. Refresh before reviewing.');
+  const updated: Stored = {
+    ...stored,
+    baselines: stored.baselines.map((b) =>
+      b.pageId === decision.pageId ? { ...b, version: decision.currentVersion } : b,
+    ),
+    reviews: [
+      ...(stored.reviews ?? []),
+      {
+        pageId: decision.pageId,
+        fromVersion: decision.reviewedVersion,
+        toVersion: decision.currentVersion,
+        reviewedAt: new Date().toISOString(),
+        reviewerId,
+      },
+    ].slice(-50),
+  };
+  const response = await api
+    .asUser()
+    .requestJira(route`/rest/api/3/issue/${anchor}/properties/${propertyKey}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    });
+  if (!response.ok)
+    throw new Error(
+      `Could not adopt the baseline (HTTP ${response.status}). Jira edit permission is required.`,
+    );
+  return { pageId: decision.pageId, reviewedVersion: decision.currentVersion };
 }

@@ -69,6 +69,7 @@ export interface Decision {
   reviewedExcerpt: string;
   currentExcerpt: string;
   currentAppliesTo?: string[];
+  currentContract?: Contract;
   updated: string;
   accessible: boolean;
   contract: Contract;
@@ -110,6 +111,7 @@ export interface RecordInput {
   outcome: 'hold' | 'proceed_with_conditions';
   rationale: string;
   snapshotToken: string;
+  requestId: string;
 }
 export interface DecisionRecord {
   id: string;
@@ -120,6 +122,11 @@ export interface DecisionRecord {
   snapshotId: string;
   findingCount: number;
   url?: string;
+  requestId?: string;
+}
+export interface HistoryPage {
+  records: DecisionRecord[];
+  nextStartAt: number | null;
 }
 export const configurationSchema = z
   .object({

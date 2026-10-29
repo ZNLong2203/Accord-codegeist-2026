@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "check": "npm run typecheck && npm test && npm run build && npm run manifest:check",
     "manifest:check": "node scripts/validate-manifest.cjs",
+    "doctor": "node scripts/doctor.mjs",
     "format": "prettier --write src tests docs scripts README.md AGENTS.md manifest.yml '*.json' '*.ts'",
     "format:check": "prettier --check src tests docs scripts README.md AGENTS.md manifest.yml '*.json' '*.ts'",
     "forge": "forge",

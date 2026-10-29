@@ -6,10 +6,12 @@ export function parseContract(storageBody: string): Contract {
     throw new Error('Decision page exceeds the 250 KB parsing limit.');
   const candidates = [
     ...storageBody.matchAll(
-      /<ac:plain-text-body>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/ac:plain-text-body>/g,
+      /<ac:plain-text-body>\s*((?:<!\[CDATA\[[\s\S]*?\]\]>\s*)+)<\/ac:plain-text-body>/g,
     ),
   ]
-    .map((match) => match[1])
+    .map((match) =>
+      [...match[1].matchAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g)].map((part) => part[1]).join(''),
+    )
     .filter((body) => body.includes('"schemaVersion"'));
   if (candidates.length !== 1)
     throw new Error('Each selected page must contain exactly one Accord JSON code block.');

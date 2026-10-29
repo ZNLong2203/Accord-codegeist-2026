@@ -28,12 +28,14 @@ import {
 } from 'lucide-react';
 import { assess, findSmallestSafeScope, snapshotId } from '../domain/engine';
 import { createDemoSnapshot } from '../domain/demo';
-import type { DecisionRecord, Snapshot } from '../domain/schema';
-import { getSnapshot, isLive, readHistory, resetDemo, saveDemo } from './client';
-import { Logo, SourceIcon, SourceLink, Tag, time } from './ui';
+import type { Contract, Decision, Snapshot } from '../domain/schema';
+import { getSnapshot, isLive, resetDemo, saveDemo } from './client';
+import { Logo, SourceIcon, Tag, time } from './ui';
 import { EvidenceMap, FindingRow } from './ReviewGraph';
 import { Inspector, RecordModal, HelpModal } from './Dialogs';
 import { Settings } from './Settings';
+import { HistoryPanel } from './HistoryPanel';
+import { SourceReview } from './SourceReview';
 
 type Page = 'review' | 'decisions' | 'scenario' | 'history' | 'settings';
 const pages = [
@@ -52,22 +54,33 @@ export function App() {
   const [query, setQuery] = useState('');
   const [excluded, setExcluded] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [records, setRecords] = useState<DecisionRecord[]>(readHistory);
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const [sourceReview, setSourceReview] = useState<{
+    snapshot: Snapshot;
+    decision: Decision;
+  } | null>(null);
   const [modal, setModal] = useState(false);
   const [help, setHelp] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [toast, setToast] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const refreshSequence = useRef(0);
 
   async function refresh() {
+    const ticket = ++refreshSequence.current;
     setBusy(true);
     setError('');
     try {
-      setSnapshot(await getSnapshot(anchor));
+      const next = await getSnapshot(anchor);
+      if (ticket !== refreshSequence.current) return false;
+      setSnapshot(next);
+      return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load release evidence.');
+      if (ticket === refreshSequence.current)
+        setError(e instanceof Error ? e.message : 'Could not load release evidence.');
+      return false;
     } finally {
-      setBusy(false);
+      if (ticket === refreshSequence.current) setBusy(false);
     }
   }
   useEffect(() => {
@@ -135,11 +148,13 @@ export function App() {
     const next = structuredClone(snapshot);
     if (kind === 'page') {
       const decision = next.decisions[0];
-      decision.currentVersion = decision.currentVersion === 4 ? 3 : 4;
-      decision.currentExcerpt =
-        decision.currentVersion === 3
-          ? decision.reviewedExcerpt
-          : createDemoSnapshot().decisions[0].currentExcerpt;
+      decision.currentVersion += 1;
+      decision.currentExcerpt = `Rotate refresh tokens on every use. Review the rollback window for source version ${decision.currentVersion}.`;
+      decision.currentContract = {
+        ...(decision.currentContract ?? decision.contract),
+        rationale: decision.currentExcerpt,
+      };
+      decision.updated = new Date().toISOString();
     } else if (kind === 'tests') {
       const issue = next.issues.find((issue) => issue.key === 'PLAT-139')!;
       issue.statusCategory = issue.statusCategory === 'done' ? 'indeterminate' : 'done';
@@ -154,6 +169,39 @@ export function App() {
     saveDemo(next);
     setSnapshot(next);
     setToast('Demo evidence updated. All rules have been re-evaluated.');
+  }
+
+  function addDemoDecision(contract: Contract) {
+    if (!snapshot || isLive) return;
+    if (snapshot.decisions.length >= 10) {
+      setToast('This review supports up to 10 decision pages.');
+      return;
+    }
+    const id = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const decision: Decision = {
+      id: `demo-${id}`,
+      pageId: id,
+      title: contract.title,
+      url: '',
+      owner: contract.owner,
+      reviewedVersion: 1,
+      currentVersion: 1,
+      reviewedExcerpt: contract.rationale,
+      currentExcerpt: contract.rationale,
+      currentAppliesTo: contract.appliesTo,
+      currentContract: structuredClone(contract),
+      contract,
+      updated: new Date().toISOString(),
+      accessible: true,
+    };
+    const next = {
+      ...snapshot,
+      capturedAt: new Date().toISOString(),
+      decisions: [...snapshot.decisions, decision],
+    };
+    saveDemo(next);
+    setSnapshot(next);
+    setToast('Decision added to the local demo library.');
   }
 
   function exportReview() {
@@ -322,7 +370,7 @@ export function App() {
                       : page === 'history'
                         ? 'Review history'
                         : 'Settings & connections'}
-                <span className="heading-dot">.</span>
+                {page !== 'scenario' && <span className="heading-dot">.</span>}
               </h1>
               <p>
                 {page === 'review'
@@ -414,20 +462,32 @@ export function App() {
                           'No open signals in the selected scope. Your team makes the final call.'
                         ) : critical ? (
                           <>
-                            {critical} critical signal{critical === 1 ? '' : 's'} need a human look
-                            before this release.
+                            {critical} critical signal{critical === 1 ? '' : 's'}{' '}
+                            {critical === 1 ? 'needs' : 'need'} a human look before this release.
                           </>
                         ) : (
-                          <>The remaining signal needs an ownership review.</>
+                          <>The remaining signals need a human review.</>
                         )}
                       </p>
                       <div className="story-footer">
                         <span className="stacked-avatars">
-                          <i>MC</i>
-                          <i>JR</i>
-                          <i>PS</i>
+                          {[
+                            ...new Set(
+                              snapshot.decisions.filter((d) => d.accessible).map((d) => d.owner),
+                            ),
+                          ]
+                            .slice(0, 3)
+                            .map((owner) => (
+                              <i key={owner}>
+                                {owner
+                                  .split(' ')
+                                  .map((part) => part[0])
+                                  .slice(0, 2)
+                                  .join('')}
+                              </i>
+                            ))}
                         </span>
-                        <span>{snapshot.decisions.length} decision owners, one shared picture</span>
+                        <span>{snapshot.decisions.length} decision pages, one shared picture</span>
                         <ArrowDownLeft size={20} />
                       </div>
                     </div>
@@ -822,79 +882,15 @@ export function App() {
               )}
 
               {page === 'history' && (
-                <section className="panel history-panel">
-                  {isLive && (
-                    <div className="inline-info">
-                      This session shows decisions recorded here. The full shared history lives in
-                      comments on{' '}
-                      <SourceLink
-                        url={`${snapshot.issues[0]?.url.split('/browse/')[0]}/browse/${snapshot.release.anchorIssue}`}
-                        demo={false}
-                      >
-                        {snapshot.release.anchorIssue}
-                      </SourceLink>
-                      .
-                    </div>
-                  )}
-                  {records.length ? (
-                    records
-                      .filter((item) =>
-                        `${item.rationale} ${item.actor}`
-                          .toLowerCase()
-                          .includes(query.toLowerCase()),
-                      )
-                      .map((item) => (
-                        <article className="history-item" key={item.id}>
-                          <span className="history-mark">
-                            <MessageSquare size={18} />
-                          </span>
-                          <div>
-                            <div className="history-title">
-                              <h3>
-                                {item.outcome === 'hold'
-                                  ? 'Release held for review'
-                                  : 'Proceed with conditions recorded'}
-                              </h3>
-                              <Tag tone={isLive ? 'success' : 'neutral'}>
-                                {isLive ? 'Jira comment' : 'Local demo record'}
-                              </Tag>
-                            </div>
-                            <p>{item.rationale}</p>
-                            <div className="history-meta">
-                              <span>{item.actor}</span>
-                              <span>{time(item.recordedAt)}</span>
-                              <code>{item.snapshotId}</code>
-                              <span>{item.findingCount} signals at review</span>
-                            </div>
-                            {item.url && (
-                              <SourceLink url={item.url} demo={false}>
-                                Open comment in Jira
-                              </SourceLink>
-                            )}
-                          </div>
-                        </article>
-                      ))
-                  ) : (
-                    <div className="empty-state tall">
-                      <History size={36} />
-                      <h2>A good decision deserves a record.</h2>
-                      <p>
-                        Review the evidence, add your reasoning, and leave a useful trail for the
-                        next person.
-                      </p>
-                      <button
-                        className="button primary"
-                        onClick={() => {
-                          setExcluded([]);
-                          setModal(true);
-                        }}
-                      >
-                        Record your first review
-                        <ArrowUpRight size={15} />
-                      </button>
-                    </div>
-                  )}
-                </section>
+                <HistoryPanel
+                  snapshot={snapshot}
+                  revision={historyRevision}
+                  query={query}
+                  onFirstReview={() => {
+                    setExcluded([]);
+                    setModal(true);
+                  }}
+                />
               )}
               {page === 'settings' && (
                 <Settings
@@ -902,14 +898,14 @@ export function App() {
                   anchor={anchor}
                   setAnchor={setAnchor}
                   onLoaded={async () => {
-                    await refresh();
-                    navigate('review');
+                    if (await refresh()) navigate('review');
                   }}
+                  onAddDecision={addDemoDecision}
                   onDemo={updateDemo}
                   onReset={() => {
                     resetDemo();
                     setSnapshot(createDemoSnapshot());
-                    setRecords([]);
+                    setHistoryRevision((previous) => previous + 1);
                     setExcluded([]);
                     setToast('Demo restored to its starting point.');
                   }}
@@ -923,9 +919,9 @@ export function App() {
               anchor={anchor}
               setAnchor={setAnchor}
               onLoaded={async () => {
-                await refresh();
-                navigate('review');
+                if (await refresh()) navigate('review');
               }}
+              onAddDecision={addDemoDecision}
               onDemo={updateDemo}
               onReset={() => {}}
             />
@@ -948,6 +944,14 @@ export function App() {
           finding={selectedFinding}
           decision={selectedDecision}
           onClose={() => setSelected(null)}
+          onReview={
+            excluded.length === 0 && selectedDecision
+              ? () => {
+                  setSourceReview({ snapshot, decision: selectedDecision });
+                  setSelected(null);
+                }
+              : undefined
+          }
           onSimulate={(keys) => {
             setExcluded(keys);
             setSelected(null);
@@ -959,8 +963,8 @@ export function App() {
         <RecordModal
           snapshot={snapshot}
           onClose={() => setModal(false)}
-          onRecorded={(item) => {
-            setRecords((previous) => [item, ...previous]);
+          onRecorded={() => {
+            setHistoryRevision((previous) => previous + 1);
             setModal(false);
             setToast(
               isLive
@@ -968,6 +972,19 @@ export function App() {
                 : 'Decision saved locally in this demo.',
             );
             setPage('history');
+          }}
+        />
+      )}
+      {sourceReview && (
+        <SourceReview
+          snapshot={sourceReview.snapshot}
+          decision={sourceReview.decision}
+          onClose={() => setSourceReview(null)}
+          onAdopted={(next) => {
+            setSnapshot(next);
+            setSourceReview(null);
+            setExcluded([]);
+            setToast('New source baseline adopted. Other commitments have been re-evaluated.');
           }}
         />
       )}

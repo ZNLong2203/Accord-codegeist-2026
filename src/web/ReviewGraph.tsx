@@ -31,8 +31,14 @@ export function EvidenceMap({
       <div className="graph-lanes">
         {snapshot.decisions.map((decision, index) => {
           const signals = findings.filter((finding) => finding.decisionId === decision.id);
-          const affected = decision.contract.appliesTo;
-          const deferred = affected.every((key) => excluded.includes(key));
+          const affected =
+            decision.currentVersion !== decision.reviewedVersion
+              ? [...new Set([...decision.contract.appliesTo, ...(decision.currentAppliesTo ?? [])])]
+              : decision.contract.appliesTo;
+          const visible = affected.filter((key) =>
+            snapshot.issues.some((issue) => issue.key === key && issue.inScope),
+          );
+          const deferred = visible.length > 0 && visible.every((key) => excluded.includes(key));
           return (
             <div
               className={`graph-lane ${signals.length ? 'has-signals' : ''} ${deferred ? 'is-deferred' : ''}`}
@@ -66,7 +72,9 @@ export function EvidenceMap({
                     ? 'Deferred in scenario'
                     : signals.length
                       ? `${signals.length} signal${signals.length !== 1 ? 's' : ''} to revisit`
-                      : 'Commitments in sync'}
+                      : visible.length === 0
+                        ? 'Outside this scope'
+                        : 'Commitments in sync'}
                 </span>
                 <span className="connector-line" />
                 <ChevronRight size={13} />

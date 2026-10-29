@@ -32,7 +32,7 @@ const decisions: Decision[] = [
     updated: '2026-10-29T08:40:00Z',
     accessible: true,
     reviewedExcerpt:
-      'Refresh tokens may remain valid for 30 days. Rotation is optional for the first release.',
+      'Rotate refresh tokens daily. Rotation regression tests must pass before the session flow ships.',
     currentExcerpt:
       'Rotate refresh tokens on every use. Rotation regression tests must pass before the new session flow ships.',
     contract: {
@@ -132,7 +132,11 @@ export function createDemoSnapshot(): Snapshot {
       issue('PLAT-149', 'Observability dashboard', 'done', 'Sam Kim', 2),
       issue('PLAT-139', 'Token rotation regression tests', 'indeterminate', 'Maya Chen', 3, false),
     ],
-    decisions,
+    decisions: decisions.map((decision) => ({
+      ...decision,
+      contract: { ...decision.contract, rationale: decision.reviewedExcerpt },
+      currentContract: { ...decision.contract, rationale: decision.currentExcerpt },
+    })),
     coverage: { complete: true, warnings: [] },
   } satisfies Snapshot);
 }

@@ -22,12 +22,14 @@ export function Inspector({
   decision,
   onClose,
   onSimulate,
+  onReview,
 }: {
   snapshot: Snapshot;
   finding: Finding | null;
   decision: Decision | null;
   onClose: () => void;
   onSimulate: (keys: string[]) => void;
+  onReview?: () => void;
 }) {
   const panel = useDialogFocus<HTMLElement>(onClose);
   return (
@@ -130,6 +132,14 @@ export function Inspector({
               </SourceLink>
             </>
           )}
+          {onReview &&
+            decision?.accessible &&
+            decision.currentVersion !== decision.reviewedVersion && (
+              <button className="button primary full-width" onClick={onReview}>
+                <ShieldCheck size={16} />
+                Compare & review this decision
+              </button>
+            )}
           <div className="next-step">
             <span className="little-spark">
               <ArrowRight size={17} />
@@ -178,6 +188,7 @@ export function RecordModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [requestId] = useState(() => crypto.randomUUID());
   const panel = useDialogFocus<HTMLDivElement>(onClose, saving);
   async function submit() {
     setSaving(true);
@@ -188,6 +199,7 @@ export function RecordModal({
           outcome,
           rationale: rationale.trim(),
           snapshotToken: snapshotToken(snapshot),
+          requestId,
         }),
       );
     } catch (e) {

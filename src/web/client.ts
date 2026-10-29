@@ -1,6 +1,13 @@
-import type { Configuration, DecisionRecord, RecordInput, Snapshot } from '../domain/schema';
+import type {
+  Configuration,
+  DecisionRecord,
+  HistoryPage,
+  RecordInput,
+  Snapshot,
+} from '../domain/schema';
 import { createDemoSnapshot } from '../domain/demo';
 import { assess, snapshotId, snapshotToken } from '../domain/engine';
+import { adoptDemoDecision } from '../domain/changes';
 function unwrap<T>(value: T | { body: T; metadata?: unknown }): T {
   return value && typeof value === 'object' && 'body' in value ? value.body : (value as T);
 }
@@ -52,6 +59,14 @@ export async function record(snapshot: Snapshot, input: RecordInput): Promise<De
       }),
     );
   }
+  const existing = input.requestId
+    ? readHistory().find((item) => item.requestId === input.requestId)
+    : null;
+  if (existing) {
+    if (existing.rationale !== input.rationale || existing.outcome !== input.outcome)
+      throw new Error('This request was already recorded with different content.');
+    return existing;
+  }
   const latest = await getSnapshot(snapshot.release.anchorIssue);
   if (snapshotToken(latest) !== input.snapshotToken)
     throw new Error('The evidence changed. Refresh and review it before recording.');
@@ -63,9 +78,40 @@ export async function record(snapshot: Snapshot, input: RecordInput): Promise<De
     recordedAt: new Date().toISOString(),
     snapshotId: snapshotId(snapshot),
     findingCount: assess(snapshot).findings.length,
+    requestId: input.requestId,
   };
   localStorage.setItem(historyKey, JSON.stringify([item, ...readHistory()]));
   return item;
+}
+
+export async function getHistory(anchorIssue: string, startAt = 0): Promise<HistoryPage> {
+  if (!isLive) return { records: readHistory(), nextStartAt: null };
+  const { invoke } = await import('@forge/bridge');
+  return unwrap(await invoke<HistoryPage>('getHistory', { anchorIssue, startAt }));
+}
+
+export async function reviewBaseline(snapshot: Snapshot, pageId: string): Promise<Snapshot> {
+  const token = snapshotToken(snapshot);
+  if (isLive) {
+    const { invoke } = await import('@forge/bridge');
+    await invoke('adoptBaseline', {
+      anchorIssue: snapshot.release.anchorIssue,
+      input: { pageId, snapshotToken: token },
+    });
+    return getSnapshot(snapshot.release.anchorIssue);
+  }
+  const current = await getSnapshot(snapshot.release.anchorIssue);
+  if (snapshotToken(current) !== token)
+    throw new Error('The evidence changed. Refresh before adopting a baseline.');
+  const next = {
+    ...snapshot,
+    capturedAt: new Date().toISOString(),
+    decisions: snapshot.decisions.map((decision) =>
+      decision.pageId === pageId ? adoptDemoDecision(decision) : decision,
+    ),
+  };
+  saveDemo(next);
+  return next;
 }
 
 export function resetDemo() {

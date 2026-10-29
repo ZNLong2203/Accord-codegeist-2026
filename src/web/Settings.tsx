@@ -7,9 +7,10 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
-import { configurationSchema, type Snapshot } from '../domain/schema';
+import { configurationSchema, type Contract, type Snapshot } from '../domain/schema';
 import { isLive, saveConfiguration } from './client';
 import { SourceIcon, Tag } from './ui';
+import { ContractBuilder } from './ContractBuilder';
 export function Settings({
   snapshot,
   anchor,
@@ -17,6 +18,7 @@ export function Settings({
   onLoaded,
   onDemo,
   onReset,
+  onAddDecision,
 }: {
   snapshot: Snapshot | null;
   anchor: string;
@@ -24,6 +26,7 @@ export function Settings({
   onLoaded: () => void;
   onDemo: (kind: 'page' | 'tests' | 'owner') => void;
   onReset: () => void;
+  onAddDecision?: (contract: Contract) => void;
 }) {
   const [configuration, setConfiguration] = useState({
     project: '',
@@ -60,6 +63,7 @@ export function Settings({
   }
   return (
     <div className="settings-grid">
+      <ContractBuilder snapshot={snapshot} onAdd={onAddDecision} />
       <section className="panel settings-card">
         <div className="section-top">
           <div>
@@ -124,10 +128,10 @@ export function Settings({
           <div className="demo-control">
             <div>
               <strong>Decision page version</strong>
-              <p>Toggle between the reviewed baseline and an edited page.</p>
+              <p>Publish a new fictional version while keeping the reviewed baseline.</p>
             </div>
             <button className="button secondary compact" onClick={() => onDemo('page')}>
-              Toggle page edit
+              Publish page edit
             </button>
           </div>
           <div className="demo-control">
