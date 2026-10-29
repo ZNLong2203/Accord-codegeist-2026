@@ -57,10 +57,14 @@ has been established by these fixtures.
 
 ## Outstanding external verification
 
-Authenticated `forge lint` needs a logged-in developer account. This initial
-environment has no Forge login or Atlassian development site. Local manifest
-validation passes but does not prove deployment. Verify the installation,
-product connections, scopes, Forge CSP, Rovo/MCP availability, and clean-tenant
+App registration, authenticated `forge lint` and a development deployment have
+passed. The first backend
+bundle exposed a TypeScript `noEmit` conflict with Forge's `ts-loader`; the shared
+configuration now permits emit while local type checks explicitly disable it.
+CLI 15 subsequently confirmed successful installations in Jira and Confluence
+on the same developer site. This confirms deployment and installation, not live
+workflow correctness. Browser verification requires an authenticated tenant
+session. Verify per-user scopes, Forge CSP, Rovo/MCP availability, and clean-tenant
 distribution before representing the app as a deployed submission.
 
 Also pending: feedback from release owners, larger real release scans, concurrent

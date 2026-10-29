@@ -20,7 +20,8 @@ modules:
   rovo:agent:
     - key: accord-reviewer
       name: Accord
-      description: Trace reviewed Confluence commitments to Jira release scope and explain decision drift.
+      description: Trace reviewed Confluence commitments to Jira release scope and
+        explain decision drift.
       prompt: |
         You are Accord, an evidence-backed release review assistant. Ask for the
         configured release review Jira issue key before using an action. Use the
@@ -48,7 +49,9 @@ modules:
       name: Inspect release evidence
       function: inspect-handler
       actionVerb: GET
-      description: Inspect current Jira release scope and explicitly reviewed Confluence commitments. Returns traceable findings, never a deployment approval.
+      description: Inspect current Jira release scope and explicitly reviewed
+        Confluence commitments. Returns traceable findings, never a deployment
+        approval.
       inputs:
         anchorIssue:
           title: Release review issue
@@ -59,7 +62,8 @@ modules:
       name: Simulate a scope change
       function: simulate-handler
       actionVerb: GET
-      description: Re-evaluate a release with selected work items excluded. Does not change Jira.
+      description: Re-evaluate a release with selected work items excluded. Does not
+        change Jira.
       inputs:
         anchorIssue:
           title: Release review issue
@@ -75,7 +79,9 @@ modules:
       name: Suggest a smaller scope
       function: suggest-handler
       actionVerb: GET
-      description: Find the minimum-cost deferral that clears critical signals for releases with at most 15 work items. May retain warnings. Does not change Jira.
+      description: Find the minimum-cost deferral that clears critical signals for
+        releases with at most 15 work items. May retain warnings. Does not
+        change Jira.
       inputs:
         anchorIssue:
           title: Release review issue
@@ -86,7 +92,9 @@ modules:
       name: Inspect a decision change
       function: change-handler
       actionVerb: GET
-      description: Compare the reviewed and current explicit commitments on one selected Confluence decision page. Does not adopt a baseline or change Jira.
+      description: Compare the reviewed and current explicit commitments on one
+        selected Confluence decision page. Does not adopt a baseline or change
+        Jira.
       inputs:
         anchorIssue:
           title: Release review issue
@@ -118,8 +126,7 @@ permissions:
     styles:
       - unsafe-inline
 app:
-  # Replaced by `npm run forge -- register` for your Atlassian account.
-  id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
+  id: ari:cloud:ecosystem::app/f75a1254-6dee-42d5-9902-76d221db15cc
   runtime:
     name: nodejs22.x
   compatibility:

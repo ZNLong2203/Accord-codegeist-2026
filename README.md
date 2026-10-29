@@ -48,10 +48,10 @@ The demo persists evidence changes and review records in this browser only.
 | Atlassian MCP tools                     | Not simulated             | `rovo:mcp` reuses the four actions; tenant verification pending |
 
 **Deployment status:** local build, unit/adapter tests and Atlassian's installed
-manifest validators pass. This repository has not yet been registered, deployed
-or installed on an Atlassian tenant. The manifest has a documented placeholder
-app ID. Authenticated `forge lint`, installation, cross-product permissions,
-Rovo and MCP need verification on a developer site. See [setup](docs/setup.md).
+manifest validators pass. The app is registered and authenticated `forge lint`
+passes. A development deployment and installations in Jira and Confluence have
+succeeded on a developer site. Live workflows, per-user permissions, Rovo and
+MCP still need verification. See [setup](docs/setup.md).
 
 ## Review the change, not just the warning
 

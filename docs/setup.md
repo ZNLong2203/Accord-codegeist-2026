@@ -34,7 +34,9 @@ Enter your own email and API token in the Forge CLI prompt. Do not paste tokens
 into source, browser forms in this demo, or chat. The app runtime uses Forge
 managed identity rather than `.env` credentials.
 
-Register the app; this replaces the placeholder `app.id` in `manifest.yml`:
+The repository contains the registered Accord app ID. Contributors creating an
+independent app should register their own copy; deployment to the existing app
+requires contributor access. Registration changes `app.id` in `manifest.yml`:
 
 ```sh
 npm run forge -- register
@@ -44,11 +46,21 @@ npm run forge -- deploy
 npm run forge -- install
 ```
 
-Choose your developer site and Jira as the required app. Connect Confluence as
-the optional app according to [Forge app compatibility](https://developer.atlassian.com/platform/forge/app-compatibility/).
+The shared TypeScript configuration permits emit because Forge's backend bundler
+uses `ts-loader`. Local type-check/build scripts pass `tsc --noEmit` explicitly,
+and Vite builds the frontend into `dist/`.
+
+Choose your developer site and Jira as the required app. Then run installation
+again for Confluence, the optional app:
+
+```sh
+npm run forge -- install --site YOUR-SITE.atlassian.net --product confluence --environment development
+```
+
+This sequence has been confirmed with CLI 15 on a developer site. See
+[Forge app compatibility](https://developer.atlassian.com/platform/forge/app-compatibility/).
 An app installed only in Jira does not automatically gain Confluence access.
-The exact optional-app connection workflow and Rovo/MCP Preview availability must
-be checked with the installed CLI and your tenant. App compatibility supports one
+Rovo/MCP Preview availability must be checked in your tenant. App compatibility supports one
 site; cross-site Confluence sources are not supported.
 
 ## Prepare realistic test data
