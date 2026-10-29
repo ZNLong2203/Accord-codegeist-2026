@@ -24,12 +24,7 @@ resolver.define('getHistory', async ({ payload, context }) => {
 });
 resolver.define('adoptBaseline', async ({ payload, context }) => {
   const { anchorIssue } = anchorSchema.parse(payload);
-  return adoptBaseline(
-    anchorIssue,
-    payload.input,
-    context.siteUrl,
-    context.accountId ?? 'Current user',
-  );
+  return adoptBaseline(anchorIssue, payload.input, context.siteUrl);
 });
 export const handler = resolver.getDefinitions();
 

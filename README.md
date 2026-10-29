@@ -116,6 +116,7 @@ model calls.
 
 - [Installation and tenant verification](docs/setup.md)
 - [Architecture and permission boundaries](docs/architecture.md)
+- [Privacy and retained data](docs/privacy.md)
 - [Explicit decision contracts](docs/contracts.md)
 - [Rovo and MCP tools](docs/agents.md)
 - [Verification record and limitations](docs/verification.md)

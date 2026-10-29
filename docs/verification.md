@@ -1,11 +1,11 @@
 # Verification record
 
-Date: 29 October 2026, Asia/Ho_Chi_Minh.
+Date: 30 October 2026, Asia/Ho_Chi_Minh.
 
 ## Automated checks
 
 `npm run check` runs TypeScript, Vitest, Vite production build and Atlassian's
-installed local manifest validators. The current suite contains **44 passing tests** in six files. The staged-file
+installed local manifest validators. The current suite contains **48 passing tests** in six files. The staged-file
 guard is also exercised in disposable Git repositories, including a staged secret
 whose working copy has already been cleaned. Coverage includes:
 
@@ -25,6 +25,15 @@ whose working copy has already been cleaned. Coverage includes:
 - Source-field diffs and adoption leaving unrelated signals open.
 - Read-only agent change inspection rejecting inaccessible/unselected pages.
 - Code-block generation and parsing with literal CDATA terminators.
+- Legacy adoption metadata migration without copied reviewer identifiers.
+- Version 2 comment metadata without duplicated rationale; multiline native
+  comment recovery and fail-closed recovery of missing or structurally edited bodies.
+
+`npm audit --omit=dev` reported zero known vulnerabilities on this date. A
+transitive `prosemirror-view` override pins 1.42.3 for
+[GHSA-c8x8-7fp4-3x9w](https://github.com/advisories/GHSA-c8x8-7fp4-3x9w).
+This audit result covers production dependencies, not the development toolchain
+or a guarantee that no vulnerabilities exist.
 
 Product-adapter tests mock Atlassian HTTP responses. They validate application
 logic, not actual Atlassian scopes, network behavior or installation.

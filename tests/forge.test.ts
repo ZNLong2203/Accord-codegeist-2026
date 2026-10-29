@@ -15,7 +15,7 @@ vi.mock('@forge/api', () => ({
     ),
 }));
 import { adoptBaseline, configure, loadSnapshot, recordDecision } from '../src/forge/service';
-import { loadHistory, reviewPropertyKey } from '../src/forge/history';
+import { commentRecord, loadHistory, reviewPropertyKey } from '../src/forge/history';
 import { snapshotToken } from '../src/domain/engine';
 
 const config = {
@@ -208,6 +208,71 @@ describe('shared history and retry recovery', () => {
     author: { displayName: 'Second reviewer' },
     properties: [{ key: reviewPropertyKey, value: metadata }],
   };
+  const nativeComment = (rationale: string) => ({
+    ...comment,
+    properties: [
+      {
+        key: reviewPropertyKey,
+        value: {
+          schemaVersion: 2,
+          requestId,
+          outcome: 'hold',
+          snapshotId: metadata.snapshotId,
+          findingCount: 2,
+          rationaleLineCount: rationale.split('\n').length,
+        },
+      },
+    ],
+    body: {
+      type: 'doc',
+      version: 1,
+      content: [
+        'Accord release review · Platform 2.8',
+        'Decision: HOLD',
+        ...`Rationale: ${rationale}`.split('\n'),
+        `Snapshot: ${metadata.snapshotId} · observed 2026-10-29T10:00:00Z`,
+      ].map((text) => ({
+        type: 'paragraph',
+        content: text ? [{ type: 'text', text }] : [],
+      })),
+    },
+  });
+
+  it('recovers multiline rationale from the native comment without property copies', async () => {
+    const rationale = 'Hold for the source owner.\n\nSnapshot: this line belongs to the rationale.';
+    const stored = nativeComment(rationale);
+    const record = commentRecord(stored, 'PLAT-150', 'https://demo.atlassian.net');
+    expect(record?.rationale).toBe(rationale);
+    expect(record?.actor).toBe('Second reviewer');
+    expect(JSON.stringify(stored.properties)).not.toContain(rationale);
+    mocks.jira.mockResolvedValue(response({ comments: [stored], total: 1 }));
+    const recovered = await recordDecision(
+      'PLAT-150',
+      { requestId, outcome: 'hold', rationale, snapshotToken: 'old snapshot' },
+      'https://demo.atlassian.net',
+    );
+    expect(recovered.rationale).toBe(rationale);
+    expect(mocks.confluence).not.toHaveBeenCalled();
+    expect(mocks.jira.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
+  });
+
+  it.each(['missing body', 'edited outcome'])(
+    'fails closed on a retry when its native comment has %s',
+    async (kind) => {
+      const stored: any = nativeComment(metadata.rationale);
+      if (kind === 'missing body') delete stored.body;
+      else stored.body.content[1].content[0].text = 'Decision: PROCEED WITH CONDITIONS';
+      mocks.jira.mockResolvedValue(response({ comments: [stored], total: 1 }));
+      await expect(
+        recordDecision(
+          'PLAT-150',
+          { requestId, outcome: 'hold', rationale: metadata.rationale, snapshotToken: 'old' },
+          'https://demo.atlassian.net',
+        ),
+      ).rejects.toThrow('edited or is incomplete');
+      expect(mocks.jira.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
+    },
+  );
 
   it('loads visible Accord comments and follows underlying Jira comment pagination', async () => {
     mocks.jira.mockImplementation(async (path: string) =>
@@ -286,7 +351,10 @@ describe('shared history and retry recovery', () => {
     const post = mocks.jira.mock.calls.find(
       ([path, options]) => path.endsWith('/comment') && options?.method === 'POST',
     );
-    expect(JSON.parse(post?.[1].body).properties[0].value.requestId).toBe(requestId);
+    const value = JSON.parse(post?.[1].body).properties[0].value;
+    expect(value).toMatchObject({ schemaVersion: 2, requestId, rationaleLineCount: 1 });
+    expect(value).not.toHaveProperty('rationale');
+    expect(JSON.stringify(value)).not.toContain(metadata.rationale);
   });
 
   it('reads comment properties through the dedicated endpoint when omitted from the list', async () => {
@@ -339,13 +407,44 @@ describe('shared history and retry recovery', () => {
 });
 
 describe('reviewing one changed baseline', () => {
-  it('stores only version metadata and the trusted reviewer, without source excerpts', async () => {
+  it('drops copied reviewer IDs from legacy adoption entries when updating the baseline', async () => {
+    const original = mocks.jira.getMockImplementation()!;
+    mocks.jira.mockImplementation(async (path: string, options: any) => {
+      if (path.endsWith('/properties/accord.configuration.v1') && !options?.method)
+        return response({
+          value: {
+            configuration: config,
+            baselines: [{ pageId: '1001', version: 3 }],
+            reviews: [
+              {
+                pageId: '1001',
+                fromVersion: 2,
+                toVersion: 3,
+                reviewedAt: '2026-10-28T10:00:00Z',
+                reviewerId: 'legacy-personal-account',
+              },
+            ],
+          },
+        });
+      return original(path, options);
+    });
     const snapshot = await loadSnapshot('PLAT-150', 'https://demo.atlassian.net');
     await adoptBaseline(
       'PLAT-150',
       { pageId: '1001', snapshotToken: snapshotToken(snapshot) },
       'https://demo.atlassian.net',
-      'trusted-account',
+    );
+    const put = mocks.jira.mock.calls.find(([, options]) => options?.method === 'PUT');
+    expect(JSON.parse(put?.[1].body).reviews).toHaveLength(2);
+    expect(put?.[1].body).not.toContain('reviewerId');
+    expect(put?.[1].body).not.toContain('legacy-personal-account');
+  });
+  it('stores version metadata without source excerpts or copied user identifiers', async () => {
+    const snapshot = await loadSnapshot('PLAT-150', 'https://demo.atlassian.net');
+    await adoptBaseline(
+      'PLAT-150',
+      { pageId: '1001', snapshotToken: snapshotToken(snapshot) },
+      'https://demo.atlassian.net',
     );
     const put = mocks.jira.mock.calls.find(([, options]) => options?.method === 'PUT');
     const value = JSON.parse(put?.[1].body);
@@ -354,8 +453,8 @@ describe('reviewing one changed baseline', () => {
       pageId: '1001',
       fromVersion: 3,
       toVersion: 4,
-      reviewerId: 'trusted-account',
     });
+    expect(value.reviews[0]).not.toHaveProperty('reviewerId');
     expect(put?.[1].body).not.toContain('Changed rationale');
   });
 
@@ -369,7 +468,6 @@ describe('reviewing one changed baseline', () => {
         'PLAT-150',
         { pageId: '1001', snapshotToken: snapshotToken(snapshot) },
         'https://demo.atlassian.net',
-        'reviewer',
       ),
     ).rejects.toThrow('evidence changed');
     expect(mocks.jira.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(false);

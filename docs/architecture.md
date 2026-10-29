@@ -110,8 +110,9 @@ Source comparison displays changes in title, owner, rationale, explicit issue
 applicability and individually identified rules. It does not interpret arbitrary
 page prose or label a change semantically safe. Confirmation re-reads the observed
 snapshot, adopts only the selected page version and preserves other baselines.
-The Jira configuration retains up to 50 adoption metadata entries (IDs, version
-numbers, time and caller ID), without source excerpts. Initial reconfiguration
+The Jira configuration retains up to 50 adoption metadata entries (page IDs,
+version numbers and time), without source excerpts or copied reviewer account
+IDs. Updating an older baseline strips legacy reviewer IDs. Initial reconfiguration
 replaces this configuration; these are editable metadata, not an immutable audit.
 
 History follows visible Jira comments in pages of 20. Structured Accord properties
@@ -122,6 +123,13 @@ properties are editable under Jira permissions, can be changed independently, an
 are not cryptographic attestations. Older comments without Accord metadata do not
 appear as structured review records. Refresh again if new comments shift offset
 pagination while reading older pages.
+
+New comment metadata uses schema version 2 and retains a rationale line count
+rather than duplicating the human's free text. History reconstructs the rationale
+from the native comment and checks its structure against the metadata. Missing or
+inconsistent content fails closed during retry recovery. Version 1 records remain
+readable for compatibility. This detects structural inconsistencies, not all
+possible edits to a mutable Jira comment. See the [privacy notice](privacy.md).
 
 API reference: [Jira comments](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comments/)
 and [comment properties](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-comment-properties/).

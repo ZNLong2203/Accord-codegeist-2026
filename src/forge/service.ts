@@ -31,7 +31,6 @@ const storedSchema = z.object({
         fromVersion: z.number().int(),
         toVersion: z.number().int(),
         reviewedAt: z.string(),
-        reviewerId: z.string().max(200),
       }),
     )
     .max(50)
@@ -287,10 +286,10 @@ export async function recordDecision(anchor: string, input: RecordInput, siteUrl
               {
                 key: reviewPropertyKey,
                 value: {
-                  schemaVersion: 1,
+                  schemaVersion: 2,
                   requestId: validated.requestId,
                   outcome: validated.outcome,
-                  rationale: validated.rationale,
+                  rationaleLineCount: validated.rationale.split('\n').length,
                   snapshotId: snapshotId(current),
                   findingCount: assess(current).findings.length,
                 },
@@ -322,12 +321,7 @@ export async function recordDecision(anchor: string, input: RecordInput, siteUrl
 }
 
 /** Re-review one selected page, preserving other baselines and source permissions. */
-export async function adoptBaseline(
-  anchor: string,
-  input: unknown,
-  siteUrl: string,
-  reviewerId: string,
-) {
+export async function adoptBaseline(anchor: string, input: unknown, siteUrl: string) {
   const validated = z
     .object({ pageId: z.string().regex(/^\d+$/), snapshotToken: z.string().max(2_000_000) })
     .strict()
@@ -367,7 +361,6 @@ export async function adoptBaseline(
         fromVersion: decision.reviewedVersion,
         toVersion: decision.currentVersion,
         reviewedAt: new Date().toISOString(),
-        reviewerId,
       },
     ].slice(-50),
   };

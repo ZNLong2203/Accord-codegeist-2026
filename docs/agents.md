@@ -47,7 +47,30 @@ supported agents; external client use depends on current platform support and
 site administrator settings. Follow Atlassian's current connection flow rather
 than assuming that declaring a module verifies connectivity.
 
-**Current verification:** manifest validation and shared backend tests run
-locally. Rovo invocation, MCP client discovery, cross-product permission behavior
-and installation have not yet been tested on a tenant. Local demo screens do not
-imitate an AI response or claim that these integrations are running.
+The external endpoint for this app is
+`https://mcp.atlassian.com/forge/f75a1254-6dee-42d5-9902-76d221db15cc`.
+An administrator must enable **Expose tools to MCP-compatible apps** under
+**Apps → Sites → the site → Connected apps → Accord → Tools**. Exposure is
+disabled by default. Users still authorize the external client through Atlassian
+OAuth; enabling the switch alone is not a successful tool invocation.
+
+For a direct smoke test without an external LLM:
+
+```sh
+npm run verify:mcp -- ACD-1 327681
+```
+
+Substitute a configured review issue and a selected page ID on your own site.
+The script uses the official TypeScript MCP client, an ephemeral loopback OAuth
+callback, state validation and PKCE. Tokens and registration details stay in
+memory and disappear on exit. It lists the tools and calls only the four expected
+read-only actions. It does not automatically grant consent, write Jira, or change
+Codex/Claude configuration. Tool responses can contain tenant content; do not
+publish terminal output. Compare findings and snapshot labels with the UI under
+the same user and unchanged evidence. The endpoint does not select the site:
+select the intended site during OAuth consent.
+
+**Current verification:** Forge installation and cross-product reads through the
+Custom UI have been tested on a developer tenant. Manifest validation and mocked
+shared backend tests pass. Rovo agent invocation and MCP client discovery/calls
+still require tenant verification. Local screens do not imitate AI responses.

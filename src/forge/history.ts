@@ -3,14 +3,59 @@ import { z } from 'zod';
 import { issueKey, type DecisionRecord, type HistoryPage } from '../domain/schema';
 
 export const reviewPropertyKey = 'accord.review.v1';
-export const reviewMetadata = z.object({
-  schemaVersion: z.literal(1),
+const metadataFields = z.object({
   outcome: z.enum(['hold', 'proceed_with_conditions']),
-  rationale: z.string().min(20).max(2000),
   snapshotId: z.string().max(80),
   findingCount: z.number().int().nonnegative().max(1000),
   requestId: z.uuid(),
 });
+export const reviewMetadata = z.discriminatedUnion('schemaVersion', [
+  metadataFields.extend({
+    schemaVersion: z.literal(1),
+    rationale: z.string().min(20).max(2000),
+  }),
+  metadataFields.extend({
+    schemaVersion: z.literal(2),
+    rationaleLineCount: z.number().int().min(1).max(2000),
+  }),
+]);
+
+/** V2 keeps free text in its native Jira comment, not in an entity property. */
+function rationaleFromComment(comment: any, metadata: z.infer<typeof reviewMetadata>): string {
+  if (metadata.schemaVersion === 1) return metadata.rationale;
+  const invalid = () => {
+    throw new Error(
+      'A Jira review comment was edited or is incomplete. Inspect its content before retrying.',
+    );
+  };
+  const paragraphs = comment.body?.content;
+  if (comment.body?.type !== 'doc' || !Array.isArray(paragraphs)) return invalid();
+  const line = (paragraph: any): string => {
+    if (paragraph?.type !== 'paragraph' || !Array.isArray(paragraph.content ?? []))
+      return invalid();
+    return (paragraph.content ?? [])
+      .map((node: any) => {
+        if (node.type === 'text' && typeof node.text === 'string') return node.text;
+        if (node.type === 'hardBreak') return '\n';
+        return invalid();
+      })
+      .join('');
+  };
+  const count = metadata.rationaleLineCount;
+  const rationaleLines = paragraphs.slice(2, 2 + count).map(line);
+  const decision = metadata.outcome === 'hold' ? 'HOLD' : 'PROCEED WITH CONDITIONS';
+  if (
+    !line(paragraphs[0]).startsWith('Accord release review · ') ||
+    line(paragraphs[1]) !== `Decision: ${decision}` ||
+    rationaleLines.length !== count ||
+    !rationaleLines[0]?.startsWith('Rationale: ') ||
+    !line(paragraphs[2 + count]).startsWith(`Snapshot: ${metadata.snapshotId} · observed `)
+  )
+    return invalid();
+  rationaleLines[0] = rationaleLines[0].slice('Rationale: '.length);
+  const result = z.string().min(20).max(2000).safeParse(rationaleLines.join('\n'));
+  return result.success ? result.data : invalid();
+}
 
 export function commentRecord(
   comment: any,
@@ -25,7 +70,11 @@ export function commentRecord(
   if (!metadata.success || !comment.id || !comment.created) return null;
   return {
     id: String(comment.id),
-    ...metadata.data,
+    outcome: metadata.data.outcome,
+    rationale: rationaleFromComment(comment, metadata.data),
+    snapshotId: metadata.data.snapshotId,
+    findingCount: metadata.data.findingCount,
+    requestId: metadata.data.requestId,
     actor: String(comment.author?.displayName ?? 'Jira reviewer'),
     recordedAt: String(comment.created),
     url: `${siteUrl}/browse/${anchor}?focusedCommentId=${comment.id}`,

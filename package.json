@@ -17,7 +17,8 @@
     "format:check": "prettier --check src tests docs scripts README.md AGENTS.md manifest.yml '*.json' '*.ts'",
     "forge": "forge",
     "forge:lint": "forge lint",
-    "setup:hooks": "git config core.hooksPath scripts/hooks"
+    "setup:hooks": "git config core.hooksPath scripts/hooks",
+    "verify:mcp": "node scripts/verify-mcp.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@forge/cli": "15.0.0",
     "@forge/manifest": "13.8.0",
+    "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
@@ -42,5 +44,8 @@
     "typescript": "^5.9.0",
     "vite": "^7.2.0",
     "vitest": "^3.2.0"
+  },
+  "overrides": {
+    "prosemirror-view": "1.42.3"
   }
 }
