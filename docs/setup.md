@@ -1,0 +1,93 @@
+# Local development and Forge installation
+
+## Local demo
+
+```sh
+npm ci
+npm run setup:hooks
+npm run dev
+```
+
+Open [localhost:5173](http://localhost:5173). Local mode uses labelled fictional
+fixtures and browser storage. No Atlassian or external model credentials are
+needed. Do not append `?mode=live` unless testing in an actual Forge context.
+
+Run `npm run check` for types, unit/adapter tests, production build and the
+installed Atlassian manifest validator. `npm run manifest:check` is offline schema
+validation; it does not replace authenticated `forge lint` or installation tests.
+
+## Create a developer environment
+
+Create a site using Atlassian's [Forge getting started guide](https://developer.atlassian.com/platform/forge/getting-started/).
+Enable Jira and Confluence; Rovo availability depends on the tenant and plan.
+Forge CLI 15 requires a supported Node version. This repository pins Node 22.23.4
+in `.nvmrc` and as a local development dependency used by npm scripts.
+
+Authenticate interactively on your machine:
+
+```sh
+npm run forge -- login
+```
+
+Enter your own email and API token in the Forge CLI prompt. Do not paste tokens
+into source, browser forms in this demo, or chat. The app runtime uses Forge
+managed identity rather than `.env` credentials.
+
+Register the app; this replaces the placeholder `app.id` in `manifest.yml`:
+
+```sh
+npm run forge -- register
+npm run build
+npm run forge:lint
+npm run forge -- deploy
+npm run forge -- install
+```
+
+Choose your developer site and Jira as the required app. Connect Confluence as
+the optional app according to [Forge app compatibility](https://developer.atlassian.com/platform/forge/app-compatibility/).
+An app installed only in Jira does not automatically gain Confluence access.
+The exact optional-app connection workflow and Rovo/MCP Preview availability must
+be checked with the installed CLI and your tenant. App compatibility supports one
+site; cross-site Confluence sources are not supported.
+
+## Prepare realistic test data
+
+1. Create a Jira project and fixVersion; add at least two work items to it.
+2. Create a separate Jira task to hold the review configuration and comments.
+3. Create a prerequisite task, initially In progress, which need not be in the
+   release. Mark its dependent scope task Done.
+4. Create a Confluence decision page containing the [JSON contract](contracts.md).
+   Use actual created issue keys; the fictional PLAT keys are not automatic seeds.
+5. Open **Jira → Apps → Accord → Settings**. Enter the project, version, review
+   issue, target date and numeric Confluence page IDs.
+6. Inspect the pages and explicitly confirm baseline adoption. The app reads and
+   validates them as you, then stores page IDs and versions on the review issue.
+7. Publish an edit to a decision page and refresh Review room. Inspect the version
+   signal and the independently open prerequisite.
+
+The local demo does not provision data in Atlassian. No script creates tenant data
+or changes production issues automatically.
+
+## Verify installation before distribution
+
+- A clean site with Jira and Confluence can install and connect both products.
+- Scans return current/historical pages and dependencies as the logged-in user.
+- A user lacking page access sees a redacted unknown result, not a cached excerpt.
+- Removing access or making the contract invalid never yields a clear result.
+- Scope scenarios leave Jira fixVersion, issue status and baseline untouched.
+- An explicit confirmed review writes one expected comment as the user.
+- Editing a source after opening a review causes the stale comparison to reject
+  the comment. Refresh, inspect the new evidence and submit again.
+- Agent and MCP calls return the same observed findings as the UI for that user.
+- A second reviewer can open the shared baseline using its review issue key.
+
+## Judge installation link
+
+After actual production deployment and clean-tenant verification, use Atlassian's
+[app distribution guide](https://developer.atlassian.com/platform/forge/distribute-your-apps/)
+to enable sharing and obtain an installation link. Supply the link, required
+products, setup steps, sample contracts and expected outcomes to reviewers.
+
+Do not submit a localhost URL as the Forge installation link. Production deploy,
+sharing, Marketplace listing and Devpost submission have not been performed by
+this initial local implementation.
