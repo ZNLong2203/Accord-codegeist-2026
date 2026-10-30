@@ -73,9 +73,15 @@ the same user and unchanged evidence. The endpoint does not select the site:
 select the intended site during OAuth consent.
 
 **Current verification:** Forge installation and cross-product reads through the
-Custom UI have been tested on a developer tenant. Manifest validation and mocked
-shared backend tests pass. Rovo agent invocation and MCP client discovery/calls
-still require tenant verification. Local screens do not imitate AI responses.
+Custom UI have been tested on the primary developer tenant. Production installs
+in Jira and Confluence on a second Enterprise demo site, where native Rovo can
+discover Accord and invoke `inspect-release`. Rovo's debug response identifies
+the actual tool and input; Forge logs confirm execution. With no review setup on
+that site, the action rejects the request and the agent reports missing or
+inaccessible configuration instead of inventing findings. The tool currently
+reports this failure as HTTP 500; this is a negative-path test, not a successful
+release assessment. Happy-path native agent results and the other three actions
+remain unverified on a tenant. Local screens do not imitate AI responses.
 
 On the developer demo tenant, administrators have enabled MCP exposure for both
 development and production. Discovery and dynamic registration reach the
@@ -83,8 +89,11 @@ Atlassian OAuth consent page with the intended site and Read/Search permissions.
 After the human explicitly authorized permissions and terms, accepting consent
 returned `invalid_request — Incorrect request parameters` before the loopback
 callback. No authorization code or token was received, so tool discovery and
-calls have **not** passed tenant verification. Rovo Studio also currently presents
-no selectable site in the admin flow; its agent has not been invoked.
+calls have **not** passed tenant verification. Repeating consent on the second
+Enterprise demo site with separately authorized identity and product-read scopes
+also produced the same error before the callback. Native Rovo availability on
+that site did not resolve external OAuth. This does not establish the cause of
+the OAuth rejection.
 
 ### Consent troubleshooting record
 
@@ -105,9 +114,21 @@ selector, so that variant was **not authorized**. The advertised supported-scope
 list does not establish that identity or write scopes are mandatory. These tests
 are diagnostic observations, not successful integration verification.
 
+After separate human authorization, adding `read:me`/`read:account`, and reducing
+the request to Jira plus identity scopes, also reproduced the error. A combined
+reference-style setup (SDK defaults, identity scopes, localhost and no proprietary
+`audience` parameter) failed as well. Temporarily exposing only the production
+installation did not resolve it; development exposure was restored afterwards.
+No OAuth token was obtained in these tests. Identity scopes remain outside the
+public smoke client's default and are not established as mandatory by this result.
+
 The client follows the resource's path-scoped authorization-server discovery,
-not a guessed legacy registration URL. It supplies Atlassian's explicit
-[authorization parameters](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/#1-direct-the-user-to-the-authorization-url-to-get-an-authorization-code).
+not a guessed legacy registration URL. It uses the discovered MCP resource
+indicator and an explicit consent prompt. A comparison with the proprietary
+`audience` parameter did not resolve the error; that parameter is excluded from
+the smoke client's final request. Atlassian's
+[3LO guide](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/)
+describes a different app model and does not establish custom Forge MCP requirements.
 Atlassian documents
 [callback-domain and backend-configuration troubleshooting](https://support.atlassian.com/rovo/kb/fix-oauth-consent-block-for-atlassian-rovo-mcp-server-in-atlassian-cloud/).
 If an administrator needs a fixed callback for a narrowly scoped allowlist:

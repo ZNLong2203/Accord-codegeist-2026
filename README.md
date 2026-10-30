@@ -44,7 +44,7 @@ The demo persists evidence changes and review records in this browser only.
 | Reversible scope scenarios              | Working                   | Same deterministic evaluator                                    |
 | Minimum-cost deferral search            | Working, weighted fixture | Uniform item cost; up to 15 scope items                         |
 | Human decision record                   | Browser storage           | User-authored Jira comment after fresh evidence comparison      |
-| Rovo agent and four read-only actions   | Not simulated             | Declared and implemented; tenant verification pending           |
+| Rovo agent and four read-only actions   | Not simulated             | Native inspect action invoked; happy-path verification pending  |
 | Atlassian MCP tools                     | Not simulated             | `rovo:mcp` reuses the four actions; tenant verification pending |
 
 **Deployment status:** local build, unit/adapter tests and Atlassian's installed
@@ -53,14 +53,15 @@ passes. A development deployment and installations in Jira and Confluence have
 succeeded on a developer site. An authenticated browser walkthrough verified
 baseline setup/re-review, current/historical Confluence reads, prerequisite checks, source
 diffs, scope simulation, a confirmed Jira comment and shared history reload.
-Restricted-user permissions, Rovo and MCP still need verification. See
+Restricted-user permissions, full Rovo results and external MCP still need verification. See
 [verification](docs/verification.md) and the
 [reproducible tenant demo](docs/live-demo.md).
 
 The production app is also deployed and installed in both products. Its Custom UI
 loads the shared review and native Jira history. An Atlassian-generated
 [installation link](docs/install.md) is available for site administrators. A
-separate clean-tenant walkthrough remains pending; this is not a Marketplace
+second site also accepts production installs in both products. A complete
+clean-tenant fixture walkthrough remains pending; this is not a Marketplace
 listing.
 
 ## Review the change, not just the warning

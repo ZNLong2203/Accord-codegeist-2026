@@ -93,8 +93,8 @@ const authProvider = {
     const requested = (url.searchParams.get('scope') ?? '').split(' ').filter(Boolean);
     if (!requested.length || requested.some((scope) => !readScopes.includes(scope)))
       throw new Error('Authorization requested permissions beyond the read-only allowlist.');
-    // Atlassian requires these even when no offline_access scope is requested.
-    url.searchParams.set('audience', 'api.atlassian.com');
+    // Keep consent explicit without requesting offline access. Resource selection
+    // follows MCP discovery; do not add a proprietary 3LO audience parameter.
     url.searchParams.set('prompt', 'consent');
     console.log('Open this Atlassian consent URL in your browser:');
     console.log(url.href);

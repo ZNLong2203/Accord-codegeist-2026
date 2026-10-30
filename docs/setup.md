@@ -104,8 +104,9 @@ developer site and the same evaluator as the local demo.
 The registered Accord app has a [production installation link](install.md).
 Production is deployed and installed in Jira and Confluence on the developer
 demo tenant. Its review, source versions and native comment history load through
-the authenticated Custom UI. A complete walkthrough on a separate clean tenant
-is still pending. Follow the [judge guide](judge-guide.md) after installation.
+the authenticated Custom UI. Production also installs in both products on a
+second Enterprise demo site. A complete fixture walkthrough there is still
+pending. Follow the [judge guide](judge-guide.md) after installation.
 
 For independent registrations, follow Atlassian's
 [app distribution guide](https://developer.atlassian.com/platform/forge/distribute-your-apps/)

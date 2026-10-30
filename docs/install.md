@@ -12,7 +12,9 @@ Then follow the [judge walkthrough](judge-guide.md) and
 
 Verified on 30 October 2026: the link opens the Accord installation page, displays
 the expected Jira/Confluence permissions and lists the maintainer's eligible
-sites. Production is installed and exercised on the developer demo tenant. A
-complete install and fixture walkthrough on a separate clean tenant is still
-pending. This is distribution through a Forge installation link, not an
+sites. Production is installed and exercised on the developer demo tenant.
+Production also installs through the CLI in Jira and Confluence on a second
+Enterprise demo site, where the empty setup UI loads. A complete fixture
+walkthrough on that site and installation by an independent administrator through
+the sharing link remain pending. This is distribution through a Forge installation link, not an
 Atlassian Marketplace listing.
