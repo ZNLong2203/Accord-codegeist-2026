@@ -78,8 +78,37 @@ shared backend tests pass. Rovo agent invocation and MCP client discovery/calls
 still require tenant verification. Local screens do not imitate AI responses.
 
 On the developer demo tenant, administrators have enabled MCP exposure for both
-development and production. Discovery reached the Atlassian OAuth consent page
-with the intended site and Read/Search permissions after explicitly narrowing
-scopes. Completing OAuth, tool discovery and tool calls remain separate checks.
-Rovo Studio currently presents no selectable site in the admin flow; this does
-not establish that the app agent itself has been invoked.
+development and production. Discovery and dynamic registration reach the
+Atlassian OAuth consent page with the intended site and Read/Search permissions.
+After the human explicitly authorized permissions and terms, accepting consent
+returned `invalid_request — Incorrect request parameters` before the loopback
+callback. No authorization code or token was received, so tool discovery and
+calls have **not** passed tenant verification. Rovo Studio also currently presents
+no selectable site in the admin flow; its agent has not been invoked.
+
+### Consent troubleshooting record
+
+On 30 October 2026, a fresh client registration, explicit `audience` and
+`prompt=consent`, and an exact loopback callback allowlist entry reproduced the
+same pre-callback error. The organization allowed supported domains and
+Read/Search toolsets. The temporary exact callback entry was removed after the
+test; the prior supported-domain policy was retained. No scopes were widened and
+no API-token fallback was used. These observations do not prove which provider
+parameter or tenant condition caused the rejection.
+
+The client follows the resource's path-scoped authorization-server discovery,
+not a guessed legacy registration URL. It supplies Atlassian's explicit
+[authorization parameters](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/#1-direct-the-user-to-the-authorization-url-to-get-an-authorization-code).
+Atlassian documents
+[callback-domain and backend-configuration troubleshooting](https://support.atlassian.com/rovo/kb/fix-oauth-consent-block-for-atlassian-rovo-mcp-server-in-atlassian-cloud/).
+If an administrator needs a fixed callback for a narrowly scoped allowlist:
+
+```sh
+MCP_CALLBACK_PORT=55586 npm run verify:mcp -- ACD-1 327681
+```
+
+The listener binds only `127.0.0.1`; the default is an ephemeral port.
+Do not publish authorization URLs, callback codes, tokens, client
+secrets or tenant content in a support ticket. Include sanitized parameter names,
+discovery endpoints, error text and timestamps, then request provider-side
+diagnostics rather than widening consent by trial and error.

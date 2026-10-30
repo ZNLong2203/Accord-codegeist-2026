@@ -21,6 +21,12 @@ const endpoint = new URL('https://mcp.atlassian.com/forge/f75a1254-6dee-42d5-990
 const expectedTools = ['inspect-release', 'simulate-scope', 'suggest-scope', 'decision-change'];
 const readScopes = ['read:jira-work', 'read:page:confluence'];
 const state = randomBytes(32).toString('base64url');
+const callbackPort = Number(process.env.MCP_CALLBACK_PORT ?? 0);
+if (
+  !Number.isInteger(callbackPort) ||
+  (callbackPort !== 0 && (callbackPort < 1024 || callbackPort > 65535))
+)
+  throw new Error('MCP_CALLBACK_PORT must be 0 or an integer from 1024 to 65535.');
 let clientInfo, tokenSet, verifier, resolveCallback, rejectCallback;
 const callback = new Promise((resolve, reject) => {
   resolveCallback = resolve;
@@ -47,9 +53,10 @@ const server = createServer((request, response) => {
   }
   response.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
   response.end('Consent received. Return to the terminal for the verification result.');
+  console.log('OAuth callback state validated; exchanging the code without logging it.');
   resolveCallback(url.searchParams);
 });
-server.listen(0, '127.0.0.1');
+server.listen(callbackPort, '127.0.0.1');
 await once(server, 'listening');
 const redirectUrl = `http://127.0.0.1:${server.address().port}/callback`;
 const authProvider = {
@@ -70,17 +77,21 @@ const authProvider = {
   tokens: () => tokenSet,
   saveTokens: (value) => {
     tokenSet = value;
+    console.log('OAuth token received in memory; no credentials written to disk.');
   },
   codeVerifier: () => verifier,
   saveCodeVerifier: (value) => {
     verifier = value;
   },
   redirectToAuthorization: (url) => {
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.atlassian.com'))
+    if (url.protocol !== 'https:' || url.hostname !== 'auth.atlassian.com')
       throw new Error('Unexpected authorization destination.');
     const requested = (url.searchParams.get('scope') ?? '').split(' ').filter(Boolean);
     if (!requested.length || requested.some((scope) => !readScopes.includes(scope)))
       throw new Error('Authorization requested permissions beyond the read-only allowlist.');
+    // Atlassian requires these even when no offline_access scope is requested.
+    url.searchParams.set('audience', 'api.atlassian.com');
+    url.searchParams.set('prompt', 'consent');
     console.log('Open this Atlassian consent URL in your browser:');
     console.log(url.href);
   },
@@ -149,6 +160,8 @@ try {
 } catch (error) {
   // SDK/network errors can include request details. Print only their class here.
   console.error(`MCP verification did not complete (${error?.constructor?.name ?? 'Error'}).`);
+  if (!tokenSet)
+    console.error('No OAuth token received. See docs/agents.md for consent troubleshooting.');
   if (error?.message?.startsWith('Expected tool ') || error?.message?.includes('timed out'))
     console.error(error.message);
   process.exitCode = 1;
