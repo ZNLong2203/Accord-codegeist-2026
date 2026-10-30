@@ -27,7 +27,7 @@ if (
   (callbackPort !== 0 && (callbackPort < 1024 || callbackPort > 65535))
 )
   throw new Error('MCP_CALLBACK_PORT must be 0 or an integer from 1024 to 65535.');
-let clientInfo, tokenSet, verifier, resolveCallback, rejectCallback;
+let clientInfo, tokenSet, verifier, discoveryState, resolveCallback, rejectCallback;
 const callback = new Promise((resolve, reject) => {
   resolveCallback = resolve;
   rejectCallback = reject;
@@ -71,6 +71,10 @@ const authProvider = {
   },
   state: () => state,
   clientInformation: () => clientInfo,
+  discoveryState: () => discoveryState,
+  saveDiscoveryState: (value) => {
+    discoveryState = value;
+  },
   saveClientInformation: (value) => {
     clientInfo = value;
   },
@@ -170,5 +174,5 @@ try {
   await client.close().catch(() => {});
   server.closeAllConnections();
   server.close();
-  tokenSet = clientInfo = verifier = undefined;
+  tokenSet = clientInfo = verifier = discoveryState = undefined;
 }

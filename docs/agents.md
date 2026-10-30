@@ -96,6 +96,15 @@ test; the prior supported-domain policy was retained. No scopes were widened and
 no API-token fallback was used. These observations do not prove which provider
 parameter or tenant condition caused the rejection.
 
+Further controlled tests used an independent SDK 1.32.2 client, the v2 SDK's
+registration defaults, `client_secret_post` and `client_secret_basic`, and
+`localhost` instead of `127.0.0.1`. Each reached the consent page with the original
+two read scopes; Accept reproduced the same pre-callback error. Omitting the authorization
+scope parameter displayed additional Write permissions and a Bitbucket workspace
+selector, so that variant was **not authorized**. The advertised supported-scope
+list does not establish that identity or write scopes are mandatory. These tests
+are diagnostic observations, not successful integration verification.
+
 The client follows the resource's path-scoped authorization-server discovery,
 not a guessed legacy registration URL. It supplies Atlassian's explicit
 [authorization parameters](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/#1-direct-the-user-to-the-authorization-url-to-get-an-authorization-code).
