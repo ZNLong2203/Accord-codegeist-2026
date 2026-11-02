@@ -4029,7 +4029,10 @@ textarea::placeholder {
   margin: 0;
 }
 .compact-surface {
-  padding: 4px 2px;
+  padding: 4px 2px 20px;
+}
+.surface {
+  padding-bottom: 24px;
 }
 .surface-review {
   display: grid;
