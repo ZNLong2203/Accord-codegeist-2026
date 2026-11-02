@@ -1,10 +1,19 @@
-import type { Contract, Decision } from './schema';
+import type { Contract, Decision, Rule } from './schema';
 
 export interface ContractChange {
   field: string;
   before: string;
   after: string;
   kind: 'added' | 'removed' | 'changed';
+}
+
+export function ruleLabel(rule: Rule): string {
+  return {
+    stated: 'Design commitment',
+    requires_done: 'Prerequisite',
+    forbids_label: 'Forbidden label',
+    requires_owner: 'Named owner',
+  }[rule.kind];
 }
 
 export function contractChanges(before: Contract, after: Contract): ContractChange[] {
@@ -28,7 +37,7 @@ export function contractChanges(before: Contract, after: Contract): ContractChan
     const next = after.rules.find((rule) => rule.id === id);
     const describe = (rule: typeof previous) =>
       rule
-        ? `${rule.kind}${rule.kind === 'requires_done' ? ` · ${rule.issueKey}` : rule.kind === 'forbids_label' ? ` · ${rule.label}` : ''}: ${rule.summary}`
+        ? `${ruleLabel(rule)}${rule.kind === 'requires_done' ? ` · ${rule.issueKey}` : rule.kind === 'forbids_label' ? ` · ${rule.label}` : ''}: ${rule.summary}`
         : 'Not present';
     if (describe(previous) === describe(next)) continue;
     result.push({
@@ -47,6 +56,7 @@ export function adoptDemoDecision(decision: Decision): Decision {
     ...decision,
     reviewedVersion: decision.currentVersion,
     reviewedExcerpt: decision.currentExcerpt,
+    reviewedText: decision.currentText,
     contract: structuredClone(decision.currentContract ?? decision.contract),
   };
 }

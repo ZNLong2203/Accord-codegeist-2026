@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { ArrowRight, Check, ShieldCheck, X } from 'lucide-react';
-import type { Decision, Snapshot } from '../domain/schema';
-import { contractChanges } from '../domain/changes';
-import { reviewBaseline } from './client';
+import { useMemo, useState } from 'react';
+import { ArrowRight, Check, CircleSlash, Quote, ShieldCheck, Sparkles, X } from 'lucide-react';
+import type { Decision, Rule, Snapshot } from '../domain/schema';
+import { ruleLabel } from '../domain/changes';
+import { containsQuote, likelyReplacement, sentenceDiff } from '../domain/text';
+import { confirmAndAdopt, draftCommitments, type CommitmentDraft } from './client';
 import { SourceLink, Tag } from './ui';
 import { useDialogFocus } from './useDialogFocus';
 
@@ -18,21 +19,61 @@ export function SourceReview({
   onAdopted: (next: Snapshot) => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'' | 'draft' | 'adopt'>('');
   const [error, setError] = useState('');
-  const panel = useDialogFocus<HTMLDivElement>(onClose, busy);
-  const changes = contractChanges(decision.contract, decision.currentContract ?? decision.contract);
-  async function submit() {
-    setBusy(true);
+  const [draft, setDraft] = useState<CommitmentDraft | null>(null);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [showSame, setShowSame] = useState(false);
+  const panel = useDialogFocus<HTMLDivElement>(onClose, Boolean(busy));
+
+  const hasText = decision.reviewedText !== undefined && decision.currentText !== undefined;
+  const changes = useMemo(
+    () => (hasText ? sentenceDiff(decision.reviewedText!, decision.currentText!) : []),
+    [decision, hasText],
+  );
+  const changed = changes.filter((change) => change.kind !== 'same');
+  const unchangedCount = changes.length - changed.length;
+
+  async function runDraft() {
+    setBusy('draft');
     setError('');
     try {
-      onAdopted(await reviewBaseline(snapshot, decision.pageId));
+      const result = await draftCommitments(snapshot, decision.pageId);
+      setDraft(result);
+      setChosen(new Set(result.draft.accepted.map((rule) => rule.id)));
+      setConfirmed(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'The baseline could not be adopted.');
+      setError(e instanceof Error ? e.message : 'The commitments could not be drafted.');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   }
+
+  async function adopt() {
+    if (!draft) return;
+    setBusy('adopt');
+    setError('');
+    try {
+      const rules = draft.draft.accepted.filter((rule) => chosen.has(rule.id));
+      onAdopted(
+        await confirmAndAdopt(snapshot, decision.pageId, {
+          pageVersion: draft.pageVersion,
+          title: draft.draft.title,
+          owner: draft.draft.owner,
+          appliesTo: draft.draft.appliesTo.length
+            ? draft.draft.appliesTo
+            : decision.contract.appliesTo,
+          rules,
+        }),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The commitments could not be confirmed.');
+    } finally {
+      setBusy('');
+    }
+  }
+
+  const ruleCount = chosen.size;
   return (
     <div className="modal-backdrop" onClick={() => !busy && onClose()}>
       <div
@@ -52,7 +93,7 @@ export function SourceReview({
             className="icon-button"
             aria-label="Close source review"
             onClick={onClose}
-            disabled={busy}
+            disabled={Boolean(busy)}
           >
             <X size={20} />
           </button>
@@ -65,59 +106,179 @@ export function SourceReview({
           <ArrowRight size={16} />
           <Tag tone="critical">Current v{decision.currentVersion}</Tag>
         </div>
-        <div className="source-excerpts">
-          <section>
-            <h3>Previously reviewed source</h3>
-            <p>{decision.reviewedExcerpt}</p>
-          </section>
-          <section>
-            <h3>Current source</h3>
-            <p>{decision.currentExcerpt}</p>
-          </section>
-        </div>
-        <div className="contract-diff">
+
+        <section className="review-step">
           <h3>
-            Changes to explicit commitments <Tag>{changes.length}</Tag>
+            <span className="step-number">1</span>The page, sentence by sentence
+            <Tag>{changed.length} changed</Tag>
           </h3>
-          {changes.length ? (
-            changes.map((change) => (
-              <article key={change.field}>
-                <div>
-                  <strong>{change.field}</strong>
-                  <Tag tone={change.kind === 'removed' ? 'critical' : 'success'}>{change.kind}</Tag>
-                </div>
-                <p>
-                  <span>Before</span>
-                  {change.before}
-                </p>
-                <p>
-                  <span>Now</span>
-                  {change.after}
-                </p>
-              </article>
-            ))
+          {hasText ? (
+            <div className="sentence-diff">
+              {changed.length === 0 && (
+                <p className="fineprint">Only formatting changed between these versions.</p>
+              )}
+              {changes.map((change, index) =>
+                change.kind === 'same' ? (
+                  showSame ? (
+                    <p key={index} className="sentence same">
+                      {change.text}
+                    </p>
+                  ) : null
+                ) : (
+                  <p key={index} className={`sentence ${change.kind}`}>
+                    <span className="sentence-mark" aria-hidden="true">
+                      {change.kind === 'added' ? '+' : '−'}
+                    </span>
+                    <span className="visually-hidden">
+                      {change.kind === 'added' ? 'Added: ' : 'Removed: '}
+                    </span>
+                    {change.text}
+                  </p>
+                ),
+              )}
+              {unchangedCount > 0 && (
+                <button className="text-button" onClick={() => setShowSame((v) => !v)}>
+                  {showSame ? 'Hide' : 'Show'} {unchangedCount} unchanged sentence
+                  {unchangedCount === 1 ? '' : 's'}
+                </button>
+              )}
+            </div>
           ) : (
-            <p className="fineprint">
-              The parsed contract has not changed. The page may have edits outside its JSON block.
-              Inspect the full Confluence page before adopting this version.
-            </p>
+            <div className="source-excerpts">
+              <section>
+                <h4>Previously reviewed</h4>
+                <p>{decision.reviewedExcerpt}</p>
+              </section>
+              <section>
+                <h4>Current</h4>
+                <p>{decision.currentExcerpt}</p>
+              </section>
+            </div>
           )}
-        </div>
+        </section>
+
+        <section className="review-step">
+          <h3>
+            <span className="step-number">2</span>What the release was built on
+          </h3>
+          <ul className="commitment-status">
+            {decision.contract.rules.map((rule) => {
+              const stated =
+                !rule.quote || !hasText ? null : containsQuote(decision.currentText!, rule.quote);
+              const replacement = stated === false ? likelyReplacement(rule.quote!, changes) : null;
+              return (
+                <li key={rule.id} className={stated === false ? 'lost' : ''}>
+                  <div>
+                    <strong>{ruleLabel(rule)}</strong>
+                    <Tag tone={stated === false ? 'critical' : stated ? 'success' : 'neutral'}>
+                      {stated === false ? 'Source changed' : stated ? 'Still stated' : 'Unverified'}
+                    </Tag>
+                  </div>
+                  <p>{rule.summary}</p>
+                  {rule.quote && (
+                    <blockquote>
+                      <Quote size={12} aria-hidden="true" /> {rule.quote}
+                    </blockquote>
+                  )}
+                  {replacement && (
+                    <p className="replacement">
+                      <ArrowRight size={13} /> Now reads: “{replacement}”
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section className="review-step">
+          <h3>
+            <span className="step-number">3</span>Re-confirm for v{decision.currentVersion}
+          </h3>
+          {!draft ? (
+            <div className="draft-start">
+              <p>
+                Accord reads the current page and proposes its commitments. Each one must quote the
+                page word for word, or it is discarded. Nothing is saved until you confirm.
+              </p>
+              <button
+                className="button secondary"
+                onClick={runDraft}
+                disabled={Boolean(busy) || !decision.accessible}
+              >
+                <Sparkles size={15} />
+                {busy === 'draft' ? 'Reading the page…' : 'Draft commitments'}
+              </button>
+            </div>
+          ) : (
+            <div className="draft-list">
+              <p className="fineprint">
+                {draft.draft.accepted.length} grounded proposal
+                {draft.draft.accepted.length === 1 ? '' : 's'}
+                {draft.draft.rejected.length
+                  ? ` · ${draft.draft.rejected.length} discarded`
+                  : ''} · {draft.model}
+              </p>
+              {draft.draft.accepted.map((rule: Rule) => (
+                <label key={rule.id} className="draft-item">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(rule.id)}
+                    onChange={(e) =>
+                      setChosen((previous) => {
+                        const next = new Set(previous);
+                        if (e.target.checked) next.add(rule.id);
+                        else next.delete(rule.id);
+                        return next;
+                      })
+                    }
+                  />
+                  <span>
+                    <strong>
+                      {ruleLabel(rule)}
+                      {rule.kind === 'requires_done' ? ` · ${rule.issueKey}` : ''}
+                      {rule.kind === 'forbids_label' ? ` · ${rule.label}` : ''}
+                    </strong>
+                    <span>{rule.summary}</span>
+                    <blockquote>
+                      <Quote size={12} aria-hidden="true" /> {rule.quote}
+                    </blockquote>
+                  </span>
+                </label>
+              ))}
+              {draft.draft.rejected.length > 0 && (
+                <details className="rejected">
+                  <summary>
+                    <CircleSlash size={13} /> Discarded proposals
+                  </summary>
+                  {draft.draft.rejected.map((item, index) => (
+                    <p key={index}>
+                      <strong>{item.summary}</strong> — {item.reason}
+                    </p>
+                  ))}
+                </details>
+              )}
+            </div>
+          )}
+        </section>
+
         <SourceLink url={decision.url} demo={snapshot.mode === 'demo'}>
           Inspect the full source page
         </SourceLink>
-        <label className="confirmation">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
-          />
-          <span>
-            I inspected the source and the applicable work. Adopt v{decision.currentVersion} as this
-            release’s reviewed baseline. Other open prerequisites and ownership signals will still
-            be evaluated.
-          </span>
-        </label>
+        {draft && (
+          <label className="confirmation">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+            />
+            <span>
+              I read the changes. Confirm these {ruleCount} commitment{ruleCount === 1 ? '' : 's'}{' '}
+              for v{decision.currentVersion} and adopt it as this release’s reviewed baseline. Work
+              that is already Done is not re-checked by this step.
+            </span>
+          </label>
+        )}
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -126,16 +287,16 @@ export function SourceReview({
         <div className="modal-actions">
           <span>
             {snapshot.mode === 'demo'
-              ? 'Local demo baseline only'
-              : 'Updates the shared Jira review configuration'}
+              ? 'Local demo only'
+              : 'Saves commitments on the Confluence page and updates the Jira review baseline'}
           </span>
           <button
             className="button primary"
-            disabled={!confirmed || busy || !decision.accessible}
-            onClick={submit}
+            disabled={!draft || !confirmed || ruleCount === 0 || Boolean(busy)}
+            onClick={adopt}
           >
             <Check size={16} />
-            {busy ? 'Adopting…' : `Adopt reviewed v${decision.currentVersion}`}
+            {busy === 'adopt' ? 'Confirming…' : `Confirm & adopt v${decision.currentVersion}`}
           </button>
         </div>
       </div>

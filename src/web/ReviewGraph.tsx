@@ -121,7 +121,7 @@ export function FindingRow({
   return (
     <button onClick={onClick} className={`finding-row ${selected ? 'selected' : ''}`}>
       <span className={`finding-icon ${finding.severity}`}>
-        {finding.kind === 'page_changed' ? (
+        {finding.kind === 'page_changed' || finding.kind === 'commitment_changed' ? (
           <GitBranch size={18} />
         ) : finding.kind === 'owner' ? (
           <Users size={18} />
@@ -141,11 +141,13 @@ export function FindingRow({
           </Tag>
         </div>
         <p>
-          {finding.kind === 'page_changed'
-            ? 'The source has moved beyond the version this release was reviewed against.'
-            : finding.kind === 'dependency'
-              ? 'A confirmed prerequisite is still open, even though its dependent work is done.'
-              : finding.explanation}
+          {finding.kind === 'commitment_changed'
+            ? `${finding.evidence[0]?.detail ?? ''} → ${finding.evidence[1]?.detail ?? ''}`
+            : finding.kind === 'page_changed'
+              ? finding.explanation
+              : finding.kind === 'dependency'
+                ? 'A confirmed prerequisite is still open, even though its dependent work is done.'
+                : finding.explanation}
         </p>
       </div>
       <div className="finding-meta">

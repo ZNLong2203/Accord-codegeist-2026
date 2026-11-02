@@ -11,6 +11,7 @@ import { configurationSchema, type Contract, type Snapshot } from '../domain/sch
 import { isLive, saveConfiguration } from './client';
 import { SourceIcon, Tag } from './ui';
 import { ContractBuilder } from './ContractBuilder';
+import { ConfirmPageCard, SampleReleaseCard } from './Onboarding';
 export function Settings({
   snapshot,
   anchor,
@@ -63,7 +64,12 @@ export function Settings({
   }
   return (
     <div className="settings-grid">
-      <ContractBuilder snapshot={snapshot} onAdd={onAddDecision} />
+      <SampleReleaseCard
+        onCreated={(created) => {
+          setAnchor(created);
+          onLoaded();
+        }}
+      />
       <section className="panel settings-card">
         <div className="section-top">
           <div>
@@ -116,6 +122,7 @@ export function Settings({
           </span>
         </div>
       </section>
+      {isLive ? <ConfirmPageCard /> : <ContractBuilder snapshot={snapshot} onAdd={onAddDecision} />}
       {!isLive ? (
         <section className="panel settings-card">
           <div className="section-top">
@@ -227,9 +234,8 @@ export function Settings({
           <label className="confirmation">
             <input type="checkbox" checked={adopt} onChange={(e) => setAdopt(e.target.checked)} />
             <span>
-              I inspected the current page versions and their Accord JSON blocks. Save these
-              versions and explicit commitments as the release baseline. This replaces any existing
-              baseline on this issue.
+              I inspected the current page versions and their confirmed commitments. Save these
+              versions as the release baseline. This replaces any existing baseline on this issue.
             </span>
           </label>
           {error && <p className="form-error">{error}</p>}
@@ -255,7 +261,8 @@ export function Settings({
               <span>02</span>Register, build and deploy the Forge app using the repository guide.
             </li>
             <li>
-              <span>03</span>Add an Accord JSON contract to each selected decision page.
+              <span>03</span>Write decisions in Confluence, then confirm the commitments Accord
+              drafts from each page.
             </li>
             <li>
               <span>04</span>Adopt a reviewed baseline, then inspect your release in Accord.

@@ -1,4 +1,6 @@
 import type {
+  Contract,
+  Rule,
   Configuration,
   DecisionRecord,
   HistoryPage,
@@ -88,6 +90,113 @@ export async function getHistory(anchorIssue: string, startAt = 0): Promise<Hist
   if (!isLive) return { records: readHistory(), nextStartAt: null };
   const { invoke } = await import('@forge/bridge');
   return unwrap(await invoke<HistoryPage>('getHistory', { anchorIssue, startAt }));
+}
+
+export interface CommitmentDraft {
+  pageId: string;
+  pageVersion: number;
+  pageTitle: string;
+  model: string;
+  draft: {
+    title: string;
+    owner: string;
+    appliesTo: string[];
+    accepted: Rule[];
+    rejected: { summary: string; quote: string; reason: string }[];
+  };
+  existing: Contract | null;
+}
+
+/** Live: Forge LLM drafts from the page. Demo: the fixture's prepared draft, labelled as such. */
+export async function draftCommitments(
+  snapshot: Snapshot,
+  pageId: string,
+): Promise<CommitmentDraft> {
+  if (isLive) {
+    const { invoke } = await import('@forge/bridge');
+    return unwrap(await invoke<CommitmentDraft>('draftCommitments', { pageId }));
+  }
+  const decision = snapshot.decisions.find((item) => item.pageId === pageId);
+  if (!decision?.currentContract) throw new Error('This demo page has no prepared draft.');
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  const contract = decision.currentContract;
+  return {
+    pageId,
+    pageVersion: decision.currentVersion,
+    pageTitle: decision.title,
+    model: 'Demo draft · no model call',
+    draft: {
+      title: contract.title,
+      owner: contract.owner,
+      appliesTo: contract.appliesTo,
+      accepted: contract.rules,
+      rejected: [],
+    },
+    existing: null,
+  };
+}
+
+export interface ConfirmInput {
+  pageVersion: number;
+  title: string;
+  owner: string;
+  appliesTo: string[];
+  rules: Rule[];
+}
+
+/** Saves confirmed commitments on the page, then adopts that exact version as the baseline. */
+export async function confirmAndAdopt(
+  snapshot: Snapshot,
+  pageId: string,
+  input: ConfirmInput,
+): Promise<Snapshot> {
+  if (isLive) {
+    const { invoke } = await import('@forge/bridge');
+    await invoke('confirmCommitments', { pageId, ...input });
+    const fresh = await getSnapshot(snapshot.release.anchorIssue);
+    const decision = fresh.decisions.find((item) => item.pageId === pageId);
+    if (decision?.currentVersion !== input.pageVersion)
+      throw new Error('The decision page changed again. Review the new version.');
+    return reviewBaseline(fresh, pageId);
+  }
+  const next: Snapshot = {
+    ...snapshot,
+    decisions: snapshot.decisions.map((decision) =>
+      decision.pageId === pageId
+        ? {
+            ...decision,
+            currentContract: {
+              schemaVersion: 1,
+              title: input.title,
+              owner: input.owner,
+              rationale: input.rules.find((rule) => rule.kind === 'stated')?.quote ?? input.title,
+              appliesTo: input.appliesTo,
+              rules: input.rules,
+            },
+          }
+        : decision,
+    ),
+  };
+  saveDemo(next);
+  return reviewBaseline(next, pageId);
+}
+
+export interface SampleTargets {
+  projects: { key: string; name: string }[];
+  spaces: { key: string; name: string }[];
+}
+export async function listSampleTargets(): Promise<SampleTargets> {
+  const { invoke } = await import('@forge/bridge');
+  return unwrap(await invoke<SampleTargets>('listSampleTargets'));
+}
+export async function createSampleRelease(projectKey: string, spaceKey: string) {
+  const { invoke } = await import('@forge/bridge');
+  return unwrap(
+    await invoke<{ anchorIssue: string; issues: string[]; warnings: string[] }>(
+      'createSampleRelease',
+      { projectKey, spaceKey },
+    ),
+  );
 }
 
 export async function reviewBaseline(snapshot: Snapshot, pageId: string): Promise<Snapshot> {
