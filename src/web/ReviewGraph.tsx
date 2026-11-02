@@ -142,7 +142,7 @@ export function FindingRow({
         </div>
         <p>
           {finding.kind === 'commitment_changed'
-            ? `${finding.evidence[0]?.detail ?? ''} → ${finding.evidence[1]?.detail ?? ''}`
+            ? 'The sentence this work was built on has been rewritten.'
             : finding.kind === 'page_changed'
               ? finding.explanation
               : finding.kind === 'dependency'

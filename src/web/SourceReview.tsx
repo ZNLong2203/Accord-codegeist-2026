@@ -198,8 +198,8 @@ export function SourceReview({
           {!draft ? (
             <div className="draft-start">
               <p>
-                Accord reads the current page and proposes its commitments. Each one must quote the
-                page word for word, or it is discarded. Nothing is saved until you confirm.
+                Accord proposes commitments, each quoting the page word for word. Nothing is saved
+                until you confirm.
               </p>
               <button
                 className="button secondary"

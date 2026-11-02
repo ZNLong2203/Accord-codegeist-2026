@@ -275,16 +275,6 @@ export function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span className="little-spark">
-            <Sparkles size={17} />
-          </span>
-          <h3>Context is a team sport.</h3>
-          <p>Connect the decisions behind the work. Catch what changed.</p>
-          <button onClick={() => setHelp(true)}>
-            Meet your new review ritual <ArrowUpRight size={14} />
-          </button>
-        </div>
         <div className="sidebar-bottom">
           <button
             className={`nav-item ${page === 'settings' ? 'active' : ''}`}
@@ -951,12 +941,9 @@ export function App() {
           )}
           <footer className="page-footer">
             <span>
-              <Logo small />A little more context. A better call.
+              <Logo small />
             </span>
-            <span>
-              {snapshot ? snapshotId(snapshot) : 'Accord'}
-              <span className="footer-dot">·</span>Made for teams that care about the why.
-            </span>
+            <span>{snapshot ? `Snapshot ${snapshotId(snapshot)}` : 'Accord'}</span>
           </footer>
         </main>
       </div>
