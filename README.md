@@ -82,7 +82,7 @@ property storage, sentence-level drift, sample release, issue and page surfaces,
 Teamwork Graph context) pass unit and adapter tests against mocked Atlassian
 APIs. On the development site, a browser walkthrough created a sample release,
 drafted commitments with Forge LLM, confirmed and adopted a new decision version,
-and showed a decision owner returned by Teamwork Graph. Production still runs 2.x. External MCP
+and showed a decision owner returned by Teamwork Graph. Production was deployed as 3.x on 2 November and installed on both demo sites; its walkthrough is still to be repeated. External MCP
 OAuth currently fails before the client callback and is under investigation with
 Atlassian. See [verification](docs/verification.md).
 

@@ -18,3 +18,9 @@ Enterprise demo site, where the empty setup UI loads. A complete fixture
 walkthrough on that site and installation by an independent administrator through
 the sharing link remain pending. This is distribution through a Forge installation link, not an
 Atlassian Marketplace listing.
+
+Update, 2 November 2026: production now serves version 3 (Forge LLM drafting,
+sample release, issue and page panels, Teamwork Graph context). Both demo sites
+were upgraded to it; existing installations of version 2 need an administrator to
+approve the new permissions. A fresh walkthrough on production through the
+installation link is still pending.
