@@ -16,7 +16,7 @@ import type { Contract, Rule } from '../domain/schema';
 import { findRecordedRequest, reviewPropertyKey } from './history';
 import { contractAt, readConfirmations, saveConfirmation } from './commitments';
 import { assessChangeWithModel, draftWithModel } from './llm';
-import { changeTexts } from '../domain/drift';
+import { likelyReplacement, sentenceDiff } from '../domain/text';
 
 const propertyKey = 'accord.configuration.v1';
 const storedSchema = z.object({
@@ -471,8 +471,20 @@ export async function explainChange(anchor: string, input: unknown, siteUrl: str
     .object({ findingId: z.string().max(200) })
     .strict()
     .parse(input);
-  const texts = changeTexts(await loadSnapshot(anchor, siteUrl), findingId);
-  if (!texts)
-    throw new Error('Only a changed commitment with readable source text can be assessed.');
-  return assessChangeWithModel(texts.before, texts.after);
+  const snapshot = await loadSnapshot(anchor, siteUrl);
+  const finding = assess(snapshot).findings.find((item) => item.id === findingId);
+  if (finding?.kind !== 'commitment_changed' || !finding.decisionId)
+    throw new Error('Only a changed commitment can be assessed.');
+  const decision = snapshot.decisions.find((item) => item.id === finding.decisionId);
+  const rule = decision?.contract.rules.find(
+    (item) => `${decision.id}:${item.id}:source` === finding.id,
+  );
+  if (!decision?.accessible || !rule?.quote || decision.currentText === undefined)
+    throw new Error('The source text is unavailable to you.');
+  const changes = sentenceDiff(decision.reviewedText ?? '', decision.currentText);
+  const added = changes.filter((change) => change.kind === 'added').map((change) => change.text);
+  const after =
+    likelyReplacement(rule.quote, changes) ??
+    (added.length ? added.slice(0, 4).join(' ') : 'The sentence was removed.');
+  return assessChangeWithModel(rule.quote, after);
 }

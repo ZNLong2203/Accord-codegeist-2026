@@ -11,7 +11,7 @@ import { createDemoSnapshot } from '../domain/demo';
 import { assess, snapshotId, snapshotToken } from '../domain/engine';
 import { adoptDemoDecision } from '../domain/changes';
 import type { GraphContext } from '../domain/graph';
-import { changeTexts, type ChangeAssessment } from '../domain/drift';
+import type { ChangeAssessment } from '../domain/drift';
 import {
   issueContext,
   pageStatus,
@@ -116,28 +116,6 @@ export interface CommitmentDraft {
 }
 
 /** Live: Forge LLM drafts from the page. Demo: the fixture's prepared draft, labelled as such. */
-/** Local demo only: is a model configured on the Vite dev server? */
-async function devModel(): Promise<string | null> {
-  if (isLive) return null;
-  try {
-    const response = await fetch('/__dev-ai/status');
-    const body = await response.json();
-    return body.enabled ? String(body.model) : null;
-  } catch {
-    return null;
-  }
-}
-async function devPost<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`/__dev-ai/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error ?? 'The local model call failed.');
-  return result as T;
-}
-
 export async function draftCommitments(
   snapshot: Snapshot | null,
   pageId: string,
@@ -150,20 +128,6 @@ export async function draftCommitments(
     (item) => item.pageId === pageId,
   );
   if (!decision?.currentContract) throw new Error('This demo page has no prepared draft.');
-  if (await devModel()) {
-    const { model, draft } = await devPost<{ model: string; draft: CommitmentDraft['draft'] }>(
-      'draft',
-      { pageTitle: decision.title, pageText: decision.currentText ?? decision.currentExcerpt },
-    );
-    return {
-      pageId,
-      pageVersion: decision.currentVersion,
-      pageTitle: decision.title,
-      model: `${model} · local demo`,
-      draft,
-      existing: null,
-    };
-  }
   await new Promise((resolve) => setTimeout(resolve, 700));
   const contract = decision.currentContract;
   return {
@@ -372,11 +336,6 @@ export async function explainChange(
         findingId,
       }),
     );
-  }
-  const texts = changeTexts(snapshot, findingId);
-  if (texts && (await devModel())) {
-    const result = await devPost<ChangeAssessment>('explain', texts);
-    return { ...result, model: `${result.model} · local demo` };
   }
   await new Promise((resolve) => setTimeout(resolve, 600));
   return {
