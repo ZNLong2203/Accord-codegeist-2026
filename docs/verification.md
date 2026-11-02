@@ -159,3 +159,14 @@ tool routing and failure reporting only.
 
 Also pending: feedback from release owners, larger real release scans, concurrent
 review behavior, network failures during comment posting, and Marketplace review.
+
+## Browser walkthrough of 3.x, 2 November 2026
+
+Driven in Chrome on accord-codegeist.atlassian.net against development and
+production: View source opens the Jira work item in a new tab; the sample release
+(review ACD-12, work ACD-13 to ACD-16) was created in about ten seconds with three
+signals; the evidence panel showed Teamwork Graph's decision owner; "What does this
+change mean?" returned `claude-sonnet-5` output on both environments; Draft
+commitments returned two grounded proposals; the Jira issue panel listed the
+review's signals on production. Not yet exercised: the Rovo agent happy path and
+external MCP (OAuth still fails before the callback).
