@@ -80,8 +80,9 @@ shared history flows were verified in a browser, and the Rovo agent invoked its
 inspect action on a second site (the full happy path is still to be recorded). The 3.x features above (Forge LLM drafting, page
 property storage, sentence-level drift, sample release, issue and page surfaces,
 Teamwork Graph context) pass unit and adapter tests against mocked Atlassian
-APIs. A Forge LLM draft was verified on the development site; the other 3.x
-features still need a browser walkthrough there. External MCP
+APIs. On the development site, a browser walkthrough created a sample release,
+drafted commitments with Forge LLM, confirmed and adopted a new decision version,
+and showed a decision owner returned by Teamwork Graph. Production still runs 2.x. External MCP
 OAuth currently fails before the client callback and is under investigation with
 Atlassian. See [verification](docs/verification.md).
 
@@ -106,9 +107,9 @@ deferral search are plain TypeScript in `src/domain/`, shared by the UI, resolve
 and agent actions. Missing or unreadable evidence is reported as unknown, never as
 clear. Accord asks Teamwork Graph, as the user and through curated queries, who
 shaped each decision and which goals the affected work contributes to. This only
-informs the reviewer and never changes a result. On the development site the
-queries are accepted by the API; results with real people and goals are still to
-be confirmed. The evidence map in the UI is Accord's own.
+informs the reviewer and never changes a result. On the development site it
+returned the owner of a decision page; goal links have not yet been exercised
+there. The evidence map in the UI is Accord's own.
 
 ## Development
 

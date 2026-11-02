@@ -25,8 +25,12 @@ A browser walkthrough of the development site on 2 November created a sample
 release (ACD-8 to ACD-9 and two pages), showed the sentence diff and commitment
 statuses, and drafted commitments through Forge LLM. Teamwork Graph first rejected
 the query names (operations must be named `[company]_[operation]`); after renaming,
-no further Teamwork Graph errors were logged. Whether the site returns people and
-goals has not yet been confirmed. A code review then tightened quote matching to
+no further Teamwork Graph errors were logged, and the evidence inspector showed the
+decision page's owner returned by `confluencePageOwners`. Goal links
+(`jiraWorkItemGoals`) returned nothing because no goal was linked to the sample
+work; that path is still unexercised with data. Confirming and adopting the new
+decision version cleared the changed-commitment signal while the open prerequisite
+and owner signals remained. A code review then tightened quote matching to
 whole sentences (a negated rewrite no longer counts as stated), per-proposal draft
 validation, token-exact key and label checks, per-key Jira reads in the contextual
 panels, retention of up to 20 confirmed versions and recovery from a malformed
