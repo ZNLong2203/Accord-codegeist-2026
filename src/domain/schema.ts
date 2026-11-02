@@ -64,6 +64,8 @@ export type Contract = z.infer<typeof contractSchema>;
 
 export interface Issue {
   key: string;
+  /** Numeric Jira ID, used to address the work item in Teamwork Graph. */
+  id?: string;
   summary: string;
   status: string;
   statusCategory: 'new' | 'indeterminate' | 'done';

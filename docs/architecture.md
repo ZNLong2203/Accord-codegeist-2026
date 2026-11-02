@@ -102,6 +102,17 @@ pass `verifyDraft` in `src/domain/draft.ts`. `confirmCommitments` re-reads the
 page, requires the drafted version and re-checks every quote before writing. See
 [decision commitments](contracts.md).
 
+## Teamwork Graph context
+
+`src/forge/graph.ts` calls `requestTeamworkGraph` as the user with the curated
+queries `confluencePageOwners`, `confluencePageContributors` and
+`jiraWorkItemGoals`, addressing objects by ARI (`ari:cloud:confluence:{cloudId}:page/{id}`,
+`ari:cloud:jira:{cloudId}:issue/{id}`). The API is in Preview and its documented
+field names vary, so the code tries a short list of selections and keeps the first
+that validates. Errors are logged as codes and schema messages only. Scopes:
+`read:graph:page:confluence`, `read:graph:issue:jira`, `read:graph:user:atlassian`,
+`read:graph:goal:atlassian`. A missing scope yields empty results, not an error.
+
 ## Operational bounds
 
 - Up to 10 decision pages, each at most 250,000 JavaScript string units when parsing.
@@ -114,8 +125,8 @@ page, requires the drafted version and re-checks every quote before writing. See
   external egress.
 - Manual refresh; tenant latency and Forge invocation limits need load testing.
 
-The application is not a Teamwork Graph integration. Rovo/MCP modules reuse the
-same product adapters and evaluator; see [agents](agents.md).
+Rovo/MCP modules reuse the same product adapters and evaluator; see
+[agents](agents.md).
 
 ## Source re-review and shared history
 

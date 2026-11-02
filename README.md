@@ -78,8 +78,10 @@ post-review edit, so the review opens with real drift on your own data. See the
 in Jira and Confluence on two sites; its baseline, diff, what-if, comment and
 shared history flows were verified in a browser, and the Rovo agent invoked its
 inspect action on a second site (the full happy path is still to be recorded). The 3.x features above (Forge LLM drafting, page
-property storage, sentence-level drift, sample release) pass unit and adapter
-tests against mocked Atlassian APIs and have not yet been deployed. External MCP
+property storage, sentence-level drift, sample release, issue and page surfaces,
+Teamwork Graph context) pass unit and adapter tests against mocked Atlassian
+APIs. A Forge LLM draft was verified on the development site; the other 3.x
+features still need a browser walkthrough there. External MCP
 OAuth currently fails before the client callback and is under investigation with
 Atlassian. See [verification](docs/verification.md).
 
@@ -102,8 +104,9 @@ flowchart LR
 The model only proposes. Verification, drift detection, rule evaluation and the
 deferral search are plain TypeScript in `src/domain/`, shared by the UI, resolvers
 and agent actions. Missing or unreadable evidence is reported as unknown, never as
-clear. The evidence map in the UI is Accord's own; it is not a Teamwork Graph API
-integration.
+clear. Teamwork Graph supplies who shaped a decision and which goals the affected
+work contributes to, read as the user through curated queries; it informs the
+reviewer and never changes a result. The evidence map in the UI is Accord's own.
 
 ## Development
 

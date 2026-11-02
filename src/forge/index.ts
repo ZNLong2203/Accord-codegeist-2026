@@ -13,6 +13,7 @@ import {
 } from './service';
 import { createSampleRelease, listSampleTargets } from './sample';
 import { getIssueContext, getPageStatus } from './surfaces';
+import { loadGraphContext } from './graph';
 import { loadHistory } from './history';
 
 const resolver = new Resolver();
@@ -41,6 +42,9 @@ resolver.define('listSampleTargets', async () => listSampleTargets());
 resolver.define('createSampleRelease', async ({ payload }) => createSampleRelease(payload));
 resolver.define('getPageStatus', async ({ payload }) => getPageStatus(payload));
 resolver.define('getIssueContext', async ({ payload }) => getIssueContext(payload));
+resolver.define('getGraphContext', async ({ payload, context }) =>
+  loadGraphContext(payload, String(context.cloudId ?? '')),
+);
 export const handler = resolver.getDefinitions();
 
 /** Rovo/MCP actions are read-only. Human writes remain in the review UI. */

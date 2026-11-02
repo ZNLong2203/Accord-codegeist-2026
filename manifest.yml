@@ -175,6 +175,10 @@ permissions:
     - read:page:confluence
     - write:page:confluence
     - read:space:confluence
+    - read:graph:page:confluence
+    - read:graph:issue:jira
+    - read:graph:user:atlassian
+    - read:graph:goal:atlassian
   content:
     styles:
       - unsafe-inline

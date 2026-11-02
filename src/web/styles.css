@@ -4062,3 +4062,46 @@ textarea::placeholder {
   gap: 10px;
   flex-wrap: wrap;
 }
+.graph-notes {
+  border: 1px solid #e4dcef;
+  background: #faf8fc;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 14px 0;
+  display: grid;
+  gap: 8px;
+}
+.graph-notes h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--purple);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.graph-notes small {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.graph-notes p {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+.story-goals {
+  font-size: 13px;
+  margin: 8px 0 0;
+  opacity: 0.92;
+}
+.story-goals span {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(227, 237, 154, 0.18);
+  color: var(--lime);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}

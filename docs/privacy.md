@@ -56,6 +56,13 @@ cannot read. Scans, diffs and rule evaluation never call a model. Accord does no
 store the prompt or the model response; the user confirms which proposals to keep.
 Model processing is governed by Atlassian's Forge LLM terms.
 
+## Teamwork Graph
+
+When a review opens, Accord asks Teamwork Graph, as the current user, for the
+owners and contributors of the selected decision pages and for the goals linked
+to the release's work items. Results follow that user's permissions, are shown
+in the review and are not stored. They never change a finding or a verdict.
+
 ## Sample release
 
 **Create sample release** writes, as the caller and after explicit consent, one

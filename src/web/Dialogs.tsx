@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import { buildDecisionText, snapshotId, snapshotToken } from '../domain/engine';
 import type { Decision, DecisionRecord, Finding, Snapshot } from '../domain/schema';
+import { goalsAtStake, type GraphContext } from '../domain/graph';
 import { record } from './client';
 import { Logo, SourceIcon, SourceLink, Tag } from './ui';
 import { useDialogFocus } from './useDialogFocus';
 export function Inspector({
   snapshot,
+  graph,
   finding,
   decision,
   onClose,
@@ -25,6 +27,7 @@ export function Inspector({
   onReview,
 }: {
   snapshot: Snapshot;
+  graph: GraphContext | null;
   finding: Finding | null;
   decision: Decision | null;
   onClose: () => void;
@@ -84,6 +87,11 @@ export function Inspector({
               <SourceIcon type="confluence" />
             </div>
           )}
+          <GraphNotes
+            graph={graph}
+            pageId={decision?.pageId}
+            keys={finding?.affectedKeys ?? decision?.contract.appliesTo ?? []}
+          />
           {finding && (
             <div className="evidence-trail">
               <h3>The evidence trail</h3>
@@ -407,6 +415,46 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <ArrowRight size={16} />
         </button>
       </div>
+    </div>
+  );
+}
+
+/** People and goals from Teamwork Graph, shown only when the graph returned something. */
+function GraphNotes({
+  graph,
+  pageId,
+  keys,
+}: {
+  graph: GraphContext | null;
+  pageId?: string;
+  keys: string[];
+}) {
+  if (!graph?.available) return null;
+  const people = pageId ? graph.people[pageId] : undefined;
+  const names = [
+    ...(people?.owners ?? []).map((person) => ({ ...person, role: 'owner' })),
+    ...(people?.contributors ?? []).map((person) => ({ ...person, role: 'edited' })),
+  ].filter((person, index, all) => all.findIndex((other) => other.name === person.name) === index);
+  const goals = goalsAtStake(graph, keys);
+  if (!names.length && !goals.length) return null;
+  return (
+    <div className="graph-notes">
+      <h3>
+        From Teamwork Graph
+        {graph.source === 'demo' && <Tag>Demo data</Tag>}
+      </h3>
+      {names.length > 0 && (
+        <div>
+          <small>People who shaped this decision</small>
+          <p>{names.map((person) => `${person.name} (${person.role})`).join(' · ')}</p>
+        </div>
+      )}
+      {goals.length > 0 && (
+        <div>
+          <small>Goals this work contributes to</small>
+          <p>{goals.map((goal) => goal.name).join(' · ')}</p>
+        </div>
+      )}
     </div>
   );
 }

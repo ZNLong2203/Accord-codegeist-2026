@@ -29,13 +29,14 @@ import {
 import { assess, findSmallestSafeScope, snapshotId } from '../domain/engine';
 import { createDemoSnapshot } from '../domain/demo';
 import type { Contract, Decision, Snapshot } from '../domain/schema';
-import { getSnapshot, isLive, resetDemo, saveDemo } from './client';
+import { getSnapshot, isLive, resetDemo, saveDemo, getGraphContext } from './client';
 import { Logo, SourceIcon, Tag, time } from './ui';
 import { EvidenceMap, FindingRow } from './ReviewGraph';
 import { Inspector, RecordModal, HelpModal } from './Dialogs';
 import { Settings } from './Settings';
 import { HistoryPanel } from './HistoryPanel';
 import { SourceReview } from './SourceReview';
+import { goalsAtStake, type GraphContext } from '../domain/graph';
 
 type Page = 'review' | 'decisions' | 'scenario' | 'history' | 'settings';
 const pages = [
@@ -63,6 +64,7 @@ export function App() {
   const [help, setHelp] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [toast, setToast] = useState('');
+  const [graph, setGraph] = useState<GraphContext | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const refreshSequence = useRef(0);
 
@@ -106,6 +108,18 @@ export function App() {
     const timer = setTimeout(() => setToast(''), 4500);
     return () => clearTimeout(timer);
   }, [toast]);
+  // Teamwork Graph enriches the review with people and goals; it never gates a check.
+  const graphKey = snapshot
+    ? `${snapshot.release.anchorIssue}:${snapshot.decisions.map((d) => d.pageId).join(',')}`
+    : '';
+  useEffect(() => {
+    if (!snapshot) return;
+    let cancelled = false;
+    getGraphContext(snapshot).then((value) => !cancelled && setGraph(value));
+    return () => {
+      cancelled = true;
+    };
+  }, [graphKey]);
 
   const baseline = useMemo(() => (snapshot ? assess(snapshot) : null), [snapshot]);
   const assessment = useMemo(
@@ -122,6 +136,12 @@ export function App() {
     ) ?? null;
   const critical =
     assessment?.findings.filter((finding) => finding.severity === 'critical').length ?? 0;
+  const atStake = goalsAtStake(
+    graph,
+    (assessment?.findings ?? [])
+      .filter((finding) => finding.severity === 'critical')
+      .flatMap((finding) => finding.affectedKeys),
+  );
   const unknown = assessment?.findings.some((finding) => finding.severity === 'unknown');
   const done = assessment?.scope.filter((issue) => issue.statusCategory === 'done').length ?? 0;
   const scopeCount = snapshot?.issues.filter((issue) => issue.inScope).length ?? 0;
@@ -466,6 +486,12 @@ export function App() {
                           <>The remaining signals need a human review.</>
                         )}
                       </p>
+                      {atStake.length > 0 && (
+                        <p className="story-goals">
+                          <span>Goals at stake</span>
+                          {atStake.map((goal) => goal.name).join(' · ')}
+                        </p>
+                      )}
                       <div className="story-footer">
                         <span className="stacked-avatars">
                           {[
@@ -938,6 +964,7 @@ export function App() {
       {(selectedFinding || selectedDecision) && snapshot && (
         <Inspector
           snapshot={snapshot}
+          graph={graph}
           finding={selectedFinding}
           decision={selectedDecision}
           onClose={() => setSelected(null)}

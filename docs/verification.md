@@ -15,6 +15,16 @@ Forge LLM call and its latency, page property read/write scopes, the sample
 release in company-managed and team-managed projects, and the upgrade prompt for
 existing installations.
 
+A development-site probe on 2 November called Forge LLM through the same
+`draftWithModel` code (`claude-sonnet-5`, about 4–5 seconds). All quotes were
+grounded and an injected instruction in the page text was ignored. It also showed
+two model mistakes that verification now rejects: a prerequisite listed as governed
+work, and "Owner: …" read as an assignment rule. The temporary probe was removed.
+
+Teamwork Graph calls require a user context (`asUser`), so they cannot be probed
+without a browser session. People and goals, the issue context panel and the
+Confluence byline are tested against mocks only so far.
+
 ## Automated checks
 
 `npm run check` runs TypeScript, Vitest, Vite production build and Atlassian's

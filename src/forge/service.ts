@@ -136,6 +136,7 @@ function mapIssue(raw: any, inScope: boolean, siteUrl: string): Issue {
   const category = fields.status?.statusCategory?.key;
   return {
     key: issueKey.parse(raw.key),
+    ...(raw.id ? { id: String(raw.id) } : {}),
     summary: String(fields.summary ?? ''),
     status: String(fields.status?.name ?? 'Unknown'),
     statusCategory: category === 'done' ? 'done' : category === 'new' ? 'new' : 'indeterminate',

@@ -10,6 +10,7 @@ import type {
 import { createDemoSnapshot } from '../domain/demo';
 import { assess, snapshotId, snapshotToken } from '../domain/engine';
 import { adoptDemoDecision } from '../domain/changes';
+import type { GraphContext } from '../domain/graph';
 import {
   issueContext,
   pageStatus,
@@ -274,4 +275,47 @@ export async function getIssueContext(issueKey: string): Promise<IssueContextRes
   return context.decisions.length || context.findings.length
     ? { reviews: [context], reason: null }
     : { reviews: [], reason: 'no-review' };
+}
+
+const DEMO_GRAPH: GraphContext = {
+  source: 'demo',
+  available: true,
+  people: {
+    '1001': {
+      owners: [{ name: 'Maya Chen' }],
+      contributors: [{ name: 'Maya Chen' }, { name: 'Dev Patel' }],
+    },
+    '1002': { owners: [{ name: 'Jonah Rivera' }], contributors: [{ name: 'Jonah Rivera' }] },
+    '1003': { owners: [{ name: 'Priya Shah' }], contributors: [{ name: 'Priya Shah' }] },
+  },
+  goals: {
+    'PLAT-142': [{ name: 'Halve account-takeover incidents in 2026' }],
+    'PLAT-139': [{ name: 'Halve account-takeover incidents in 2026' }],
+    'PLAT-145': [{ name: 'Keep partner integrations stable' }],
+    'PLAT-146': [{ name: 'Keep partner integrations stable' }],
+  },
+  note: 'Fictional Teamwork Graph data for the local demo.',
+};
+
+/** People and goals from Teamwork Graph. Never affects a check; failures return unavailable. */
+export async function getGraphContext(snapshot: Snapshot): Promise<GraphContext> {
+  if (!isLive) return DEMO_GRAPH;
+  try {
+    const { invoke } = await import('@forge/bridge');
+    return unwrap(
+      await invoke<GraphContext>('getGraphContext', {
+        pageIds: snapshot.decisions
+          .filter((d) => d.accessible)
+          .map((d) => d.pageId)
+          .slice(0, 10),
+        issues: snapshot.issues
+          .filter((issue) => issue.id)
+          .sort((a, b) => Number(b.statusCategory === 'done') - Number(a.statusCategory === 'done'))
+          .slice(0, 15)
+          .map((issue) => ({ key: issue.key, id: issue.id! })),
+      }),
+    );
+  } catch {
+    return { source: 'teamwork-graph', available: false, people: {}, goals: {} };
+  }
 }
