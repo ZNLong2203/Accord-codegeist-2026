@@ -45,6 +45,11 @@ npm run dev
 Open [localhost:5173](http://localhost:5173). No account, API key or paid model is
 needed. The standalone demo is labelled throughout and uses fictional data.
 
+Optional: copy `.env.example` to `.env` and set `GEMINI_API_KEY` to make **Draft
+commitments** and **What does this change mean?** call Gemini instead of showing
+prepared answers. The key stays on the Vite dev server (never in the browser, the
+build or the Forge app) and model output passes the same verification as in Forge.
+
 1. In **Review room**, open _PLAT-142 was built on a commitment that changed_.
 2. Choose **Compare & review this decision**: see the sentence diff, which
    commitments are still stated, then **Draft commitments** for v4. The demo uses

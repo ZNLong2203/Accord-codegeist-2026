@@ -11,7 +11,8 @@ npm run dev
 
 Open [localhost:5173](http://localhost:5173). Local mode uses labelled fictional
 fixtures and browser storage. No Atlassian or external model credentials are
-needed. Do not append `?mode=live` unless testing in an actual Forge context.
+needed; an optional `GEMINI_API_KEY` in `.env` enables real model calls in the local
+demo only (see `.env.example`). Do not append `?mode=live` unless testing in an actual Forge context.
 
 Run `npm run check` for types, unit/adapter tests, production build and the
 installed Atlassian manifest validator. `npm run manifest:check` is offline schema
