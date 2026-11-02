@@ -122,3 +122,59 @@ describe('AI-drafted commitments', () => {
     );
   });
 });
+
+describe('draft verification edge cases', () => {
+  const text = [
+    'PLAT-1 was the pilot.',
+    'PLAT-142 must not ship until PLAT-139 is Done.',
+    'We keep rapid iteration.',
+    'Work labelled breaking-change cannot ship.',
+  ].join('\n');
+
+  it('rejects only the malformed proposal and keeps the rest', () => {
+    const result = verifyDraft(
+      {
+        appliesTo: ['PLAT-142'],
+        commitments: [
+          { kind: 'stated', summary: 'x'.repeat(320), quote: 'We keep rapid iteration.' },
+          { kind: 'mystery', summary: 'Unknown', quote: 'We keep rapid iteration.' },
+          {
+            kind: 'forbids_label',
+            summary: 'No breaking changes',
+            quote: 'Work labelled breaking-change cannot ship.',
+            label: 'breaking-change',
+          },
+        ],
+      },
+      text,
+      'Page',
+    );
+    expect(result.accepted.map((rule) => rule.kind)).toEqual(['forbids_label']);
+    expect(result.rejected).toHaveLength(2);
+  });
+
+  it('does not match a short key inside a longer one or a label inside a word', () => {
+    const result = verifyDraft(
+      {
+        commitments: [
+          {
+            kind: 'requires_done',
+            summary: 'Wrong key',
+            quote: 'PLAT-142 must not ship until PLAT-139 is Done.',
+            issueKey: 'PLAT-1',
+          },
+          {
+            kind: 'forbids_label',
+            summary: 'Wrong label',
+            quote: 'We keep rapid iteration.',
+            label: 'api',
+          },
+        ],
+      },
+      text,
+      'Page',
+    );
+    expect(result.accepted).toHaveLength(0);
+    expect(result.rejected).toHaveLength(2);
+  });
+});

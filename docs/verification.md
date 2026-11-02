@@ -21,9 +21,16 @@ grounded and an injected instruction in the page text was ignored. It also showe
 two model mistakes that verification now rejects: a prerequisite listed as governed
 work, and "Owner: …" read as an assignment rule. The temporary probe was removed.
 
-Teamwork Graph calls require a user context (`asUser`), so they cannot be probed
-without a browser session. People and goals, the issue context panel and the
-Confluence byline are tested against mocks only so far.
+A browser walkthrough of the development site on 2 November created a sample
+release (ACD-8 to ACD-9 and two pages), showed the sentence diff and commitment
+statuses, and drafted commitments through Forge LLM. Teamwork Graph first rejected
+the query names (operations must be named `[company]_[operation]`); after renaming,
+no further Teamwork Graph errors were logged. Whether the site returns people and
+goals has not yet been confirmed. A code review then tightened quote matching to
+whole sentences (a negated rewrite no longer counts as stated), per-proposal draft
+validation, token-exact key and label checks, per-key Jira reads in the contextual
+panels, retention of up to 20 confirmed versions and recovery from a malformed
+commitments property.
 
 ## Automated checks
 

@@ -9,6 +9,7 @@ vi.mock('../src/forge/service', () => ({
   adoptBaseline: vi.fn(),
 }));
 vi.mock('../src/forge/history', () => ({ loadHistory: vi.fn() }));
+vi.mock('@forge/llm', () => ({ chat: vi.fn(), list: vi.fn() }));
 import { inspectDecisionChange } from '../src/forge/index';
 
 beforeEach(() => {
@@ -22,10 +23,18 @@ describe('read-only decision change action', () => {
     const result = await inspectDecisionChange({ anchorIssue: 'PLAT-150', pageId: '1001' });
     expect(result.reviewedVersion).toBe(3);
     expect(result.currentVersion).toBe(4);
-    expect(result.changes.find((change) => change.field === 'rationale')?.after).toContain(
-      'on every use',
-    );
+    expect(result.commitments[0]).toMatchObject({ state: 'changed', kind: 'stated' });
+    expect(result.commitments[0].nowReads).toContain('on every use');
+    expect(result.changedSentences?.some((s) => s.kind === 'removed')).toBe(true);
     expect(snapshot.decisions[0].reviewedVersion).toBe(3);
+  });
+  it('explains a prose page edited after review even before anyone re-confirms it', async () => {
+    const snapshot = createDemoSnapshot();
+    delete snapshot.decisions[0].currentContract;
+    mocks.load.mockResolvedValue(snapshot);
+    const result = await inspectDecisionChange({ anchorIssue: 'PLAT-150', pageId: '1001' });
+    expect(result.confirmedChanges).toBeNull();
+    expect(result.commitments.map((c) => c.state)).toEqual(['changed', 'stated']);
   });
   it('refuses to expose a source that is unreadable or was not selected', async () => {
     const snapshot = createDemoSnapshot();

@@ -8,6 +8,10 @@ import { contractSchema, type Contract } from '../domain/schema';
  * from page content is copied into Jira, where visibility may be broader.
  */
 export const commitmentPropertyKey = 'accord-commitments';
+/** Older versions stay available for releases still reviewed against them. */
+const MAX_CONFIRMATIONS = 20;
+/** Confluence content property values are limited to 32 KB; keep a margin. */
+const MAX_PROPERTY_CHARS = 30_000;
 const confirmationSchema = z.object({
   pageVersion: z.number().int().positive(),
   confirmedAt: z.string(),
@@ -15,7 +19,7 @@ const confirmationSchema = z.object({
 });
 const propertySchema = z.object({
   schemaVersion: z.literal(1),
-  confirmations: z.array(confirmationSchema).max(5),
+  confirmations: z.array(confirmationSchema).max(MAX_CONFIRMATIONS),
 });
 export type Confirmation = z.infer<typeof confirmationSchema>;
 
@@ -36,12 +40,12 @@ export async function readConfirmations(pageId: string): Promise<StoredProperty 
   const raw = body?.results?.[0];
   if (!raw) return null;
   const parsed = propertySchema.safeParse(raw.value);
-  // A malformed property is treated as absent: it can never produce a passing check.
-  if (!parsed.success) return null;
+  // A malformed property holds no usable confirmations, so it can never produce a
+  // passing check; its id is kept so the next confirmation replaces it.
   return {
     id: String(raw.id),
     version: Number(raw.version?.number ?? 1),
-    confirmations: parsed.data.confirmations,
+    confirmations: parsed.success ? parsed.data.confirmations : [],
   };
 }
 
@@ -51,15 +55,19 @@ export function contractAt(stored: StoredProperty | null, pageVersion: number): 
 
 export async function saveConfirmation(pageId: string, pageVersion: number, contract: Contract) {
   const existing = await readConfirmations(pageId);
-  const value = {
-    schemaVersion: 1 as const,
-    confirmations: [
-      ...(existing?.confirmations ?? []).filter((item) => item.pageVersion !== pageVersion),
-      { pageVersion, confirmedAt: new Date().toISOString(), contract },
-    ]
-      .sort((a, b) => a.pageVersion - b.pageVersion)
-      .slice(-5),
-  };
+  let confirmations = [
+    ...(existing?.confirmations ?? []).filter((item) => item.pageVersion !== pageVersion),
+    { pageVersion, confirmedAt: new Date().toISOString(), contract },
+  ]
+    .sort((a, b) => a.pageVersion - b.pageVersion)
+    .slice(-MAX_CONFIRMATIONS);
+  // Drop the oldest confirmations only when the property would exceed its size limit.
+  while (
+    confirmations.length > 1 &&
+    JSON.stringify({ schemaVersion: 1, confirmations }).length > MAX_PROPERTY_CHARS
+  )
+    confirmations = confirmations.slice(1);
+  const value = { schemaVersion: 1 as const, confirmations };
   const response = existing
     ? await api
         .asUser()

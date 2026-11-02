@@ -91,10 +91,15 @@ export async function draftWithModel(pageTitle: string, pageText: string) {
   });
   const call = response.choices?.[0]?.message?.tool_calls?.[0];
   if (!call) throw new Error('The model did not return a structured draft. Try again.');
-  const args =
-    typeof call.function.arguments === 'string'
-      ? JSON.parse(call.function.arguments)
-      : call.function.arguments;
-  const draft: VerifiedDraft = verifyDraft(args, pageText, pageTitle);
+  let draft: VerifiedDraft;
+  try {
+    const args =
+      typeof call.function.arguments === 'string'
+        ? JSON.parse(call.function.arguments)
+        : call.function.arguments;
+    draft = verifyDraft(args, pageText, pageTitle);
+  } catch {
+    throw new Error('The model returned a draft Accord could not read. Try again.');
+  }
   return { model, draft };
 }

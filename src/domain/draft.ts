@@ -14,11 +14,12 @@ export const draftCommitmentSchema = z.object({
   issueKey: z.string().trim().max(80).optional().nullable(),
   label: z.string().trim().max(100).optional().nullable(),
 });
+/** The envelope is lenient so one malformed proposal cannot discard the rest. */
 export const draftSchema = z.object({
-  title: z.string().trim().max(160).optional().nullable(),
-  owner: z.string().trim().max(100).optional().nullable(),
-  appliesTo: z.array(z.string().trim().max(80)).max(50).default([]),
-  commitments: z.array(draftCommitmentSchema).max(25),
+  title: z.string().trim().max(160).optional().nullable().catch(null),
+  owner: z.string().trim().max(100).optional().nullable().catch(null),
+  appliesTo: z.array(z.string().trim().max(80)).max(50).catch([]).default([]),
+  commitments: z.array(z.unknown()).max(100),
 });
 export type DraftCommitment = z.infer<typeof draftCommitmentSchema>;
 
@@ -49,7 +50,18 @@ export function verifyDraft(raw: unknown, pageText: string, pageTitle: string): 
   const rejected: VerifiedDraft['rejected'] = [];
   const seen = new Set<string>();
   const ids = new Set<string>();
-  for (const item of draft.commitments) {
+  for (const raw of draft.commitments.slice(0, 25)) {
+    const parsed = draftCommitmentSchema.safeParse(raw);
+    if (!parsed.success) {
+      const loose = (raw ?? {}) as { summary?: unknown; quote?: unknown };
+      rejected.push({
+        summary: String(loose.summary ?? 'Malformed proposal').slice(0, 300),
+        quote: String(loose.quote ?? '').slice(0, 500),
+        reason: 'The proposal did not match the commitment format.',
+      });
+      continue;
+    }
+    const item = parsed.data;
     const reject = (reason: string) =>
       rejected.push({ summary: item.summary, quote: item.quote, reason });
     if (!containsQuote(pageText, item.quote)) {
@@ -69,15 +81,19 @@ export function verifyDraft(raw: unknown, pageText: string, pageTitle: string): 
         reject('The prerequisite must be a Jira key written on the page.');
         continue;
       }
-      if (!normalise(item.quote).includes(key.toLowerCase())) {
+      if (!issueKeysIn(item.quote.toUpperCase()).includes(key)) {
         reject('The quote must name the prerequisite work item.');
         continue;
       }
       accepted.push({ ...base, kind: 'requires_done', issueKey: key });
     } else if (item.kind === 'forbids_label') {
       const label = item.label?.trim() ?? '';
-      if (!label || !normalise(pageText).includes(normalise(label))) {
-        reject('The forbidden label must be written on the page.');
+      const token = new RegExp(
+        `(^|[^\\p{L}\\p{N}_-])${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}_-])`,
+        'iu',
+      );
+      if (!label || !token.test(item.quote)) {
+        reject('The forbidden label must be written in the quoted sentence.');
         continue;
       }
       accepted.push({ ...base, kind: 'forbids_label', label });
@@ -93,8 +109,7 @@ export function verifyDraft(raw: unknown, pageText: string, pageTitle: string): 
       accepted.push({ ...base, kind: 'stated' });
     }
   }
-  // A prerequisite is checked, not governed: keep it out of the governed scope
-  // unless the page also states a commitment about it directly.
+  // A prerequisite is checked, not governed, so it never joins the governed scope.
   const prerequisites = new Set(
     accepted.flatMap((rule) => (rule.kind === 'requires_done' ? [rule.issueKey] : [])),
   );

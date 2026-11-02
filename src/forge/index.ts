@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { assess, findSmallestSafeScope, snapshotId } from '../domain/engine';
 import { issueKey } from '../domain/schema';
 import { contractChanges } from '../domain/changes';
+import { ruleStatuses } from '../domain/context';
+import { sentenceDiff } from '../domain/text';
 import {
   adoptBaseline,
   configure,
@@ -93,28 +95,37 @@ export async function inspectDecisionChange(payload: { anchorIssue?: string; pag
   const pageId = z.string().regex(/^\d+$/).parse(payload.pageId);
   const snapshot = await loadSnapshot(anchor, '');
   const decision = snapshot.decisions.find((item) => item.pageId === pageId);
-  if (!decision?.accessible || !decision.currentContract)
+  if (!decision?.accessible)
     throw new Error(
       'This decision is not selected or its source is unavailable to the current user.',
     );
+  const sentences =
+    decision.reviewedText !== undefined && decision.currentText !== undefined
+      ? sentenceDiff(decision.reviewedText, decision.currentText).filter(
+          (change) => change.kind !== 'same',
+        )
+      : null;
   return {
     snapshotId: snapshotId(snapshot),
     pageId,
     source: decision.url,
     reviewedVersion: decision.reviewedVersion,
     currentVersion: decision.currentVersion,
-    reviewedExcerpt: decision.reviewedExcerpt,
-    currentExcerpt: decision.currentExcerpt,
-    changes: contractChanges(decision.contract, decision.currentContract),
-    note: 'Changes to an explicit contract are observable differences, not an automatic semantic verdict. A human must inspect the full source before adopting a baseline. This action is read-only.',
-  };
-}
-
-/** Proposes grounded commitments for one page. Read-only: nothing is confirmed or saved. */
-export async function draftPageCommitments(payload: { pageId?: string }) {
-  const result = await draftCommitments({ pageId: payload.pageId });
-  return {
-    ...result,
-    note: 'A draft only. Every accepted commitment quotes the page verbatim; rejected proposals are listed with a reason. A human must confirm commitments in Accord before they are checked.',
+    changedSentences: sentences,
+    commitments: ruleStatuses(
+      decision.contract,
+      decision.reviewedText ?? null,
+      decision.currentText ?? decision.currentExcerpt,
+    ).map(({ rule, state, replacement }) => ({
+      kind: rule.kind,
+      summary: rule.summary,
+      quote: rule.quote ?? null,
+      state,
+      nowReads: replacement,
+    })),
+    confirmedChanges: decision.currentContract
+      ? contractChanges(decision.contract, decision.currentContract)
+      : null,
+    note: 'Sentences are compared exactly after normalising case, whitespace and typography. "nowReads" is the most similar new sentence, a hint rather than a semantic verdict. confirmedChanges is null until someone confirms commitments for the current version. A human must review before adopting a baseline. This action is read-only.',
   };
 }

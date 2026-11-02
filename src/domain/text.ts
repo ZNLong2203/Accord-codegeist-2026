@@ -43,10 +43,11 @@ export function storageToText(storage: string): string {
   const withoutMacrosBodies = storage
     // Code blocks (including legacy Accord JSON) are data, not prose.
     .replace(/<ac:structured-macro[^>]*ac:name="code"[\s\S]*?<\/ac:structured-macro>/gi, '\n')
-    // Jira issue macros render as their key.
+    // Each Jira macro renders as its issue key; macros without one (JQL, counts) vanish.
     .replace(
-      /<ac:structured-macro[^>]*ac:name="jira"[\s\S]*?<ac:parameter ac:name="key">([^<]+)<\/ac:parameter>[\s\S]*?<\/ac:structured-macro>/gi,
-      ' $1 ',
+      /<ac:structured-macro\b[^>]*ac:name="jira"[^>]*>([\s\S]*?)<\/ac:structured-macro>/gi,
+      (_match, inner: string) =>
+        ` ${/<ac:parameter ac:name="key">([^<]+)<\/ac:parameter>/.exec(inner)?.[1] ?? ''} `,
     )
     .replace(/<ac:parameter[\s\S]*?<\/ac:parameter>/gi, ' ');
   return decodeEntities(withoutMacrosBodies.replace(BLOCK, '\n').replace(/<[^>]+>/g, ''))
@@ -83,11 +84,31 @@ export function splitSentences(text: string): string[] {
     .filter((sentence) => sentence.length > 1);
 }
 
-/** True when the quote appears verbatim in the text, ignoring case and typography. */
+/**
+ * True when the quote is one whole sentence of the text (or a few consecutive
+ * sentences), ignoring case and typography. A short label such as "Decision:"
+ * may precede it. A quote that only appears inside a longer sentence does not
+ * count: "We no longer require that tokens rotate daily." does not state
+ * "Tokens rotate daily."
+ */
 export function containsQuote(text: string, quote: string): boolean {
   const needle = normalise(quote);
   if (needle.length < 8) return false;
-  return normalise(text.replace(/\n/g, ' ')).includes(needle);
+  const sentences = splitSentences(text);
+  for (let start = 0; start < sentences.length; start++) {
+    let raw = '';
+    for (let end = start; end < Math.min(sentences.length, start + 4); end++) {
+      raw = raw ? `${raw} ${sentences[end]}` : sentences[end];
+      const joined = normalise(raw);
+      if (joined === needle) return true;
+      if (end === start && joined.endsWith(needle)) {
+        const prefix = joined.slice(0, joined.length - needle.length).trim();
+        if (/^[^.!?:]{1,40}:$/.test(prefix)) return true;
+      }
+      if (joined.length > needle.length + 60) break;
+    }
+  }
+  return false;
 }
 
 export function issueKeysIn(text: string): string[] {

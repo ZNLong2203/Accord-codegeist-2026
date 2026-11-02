@@ -104,9 +104,11 @@ flowchart LR
 The model only proposes. Verification, drift detection, rule evaluation and the
 deferral search are plain TypeScript in `src/domain/`, shared by the UI, resolvers
 and agent actions. Missing or unreadable evidence is reported as unknown, never as
-clear. Teamwork Graph supplies who shaped a decision and which goals the affected
-work contributes to, read as the user through curated queries; it informs the
-reviewer and never changes a result. The evidence map in the UI is Accord's own.
+clear. Accord asks Teamwork Graph, as the user and through curated queries, who
+shaped each decision and which goals the affected work contributes to. This only
+informs the reviewer and never changes a result. On the development site the
+queries are accepted by the API; results with real people and goals are still to
+be confirmed. The evidence map in the UI is Accord's own.
 
 ## Development
 

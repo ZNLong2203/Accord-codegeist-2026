@@ -64,7 +64,8 @@ async function withSelection(
       warn(`${kind} selection "${selection}" rejected`, result);
       continue;
     }
-    chosen[kind] = selection;
+    // Remember a selection only once the graph actually answered with it.
+    if (result.data) chosen[kind] = selection;
     if (result.errors?.length) warn(`${kind} query`, result);
     return result;
   }

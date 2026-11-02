@@ -17,27 +17,26 @@ async function siteUrl(): Promise<string> {
 }
 
 async function workItems(keys: string[], base: string): Promise<WorkItemSummary[]> {
-  const unique = [...new Set(keys)].filter((key) => issueKey.safeParse(key).success).slice(0, 50);
-  if (!unique.length) return [];
-  const response = await api.asUser().requestJira(route`/rest/api/3/search/jql`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jql: `key in (${unique.join(',')})`,
-      maxResults: 50,
-      fields: ['summary', 'status'],
+  const unique = [...new Set(keys)].filter((key) => issueKey.safeParse(key).success).slice(0, 20);
+  // One read per key: a deleted or restricted key is simply absent, and cannot
+  // make Jira reject the whole lookup the way a `key in (...)` search would.
+  const items = await Promise.all(
+    unique.map(async (key) => {
+      const response = await api
+        .asUser()
+        .requestJira(route`/rest/api/3/issue/${key}?fields=summary,status`);
+      if (!response.ok) return null;
+      const raw = await response.json();
+      return {
+        key: String(raw.key),
+        summary: String(raw.fields?.summary ?? ''),
+        status: String(raw.fields?.status?.name ?? 'Unknown'),
+        done: raw.fields?.status?.statusCategory?.key === 'done',
+        url: base ? `${base}/browse/${raw.key}` : '',
+      } satisfies WorkItemSummary;
     }),
-  });
-  // Keys the caller cannot see are simply absent; nothing about them is returned.
-  if (!response.ok) return [];
-  const body = await response.json();
-  return (body.issues ?? []).map((raw: any) => ({
-    key: String(raw.key),
-    summary: String(raw.fields?.summary ?? ''),
-    status: String(raw.fields?.status?.name ?? 'Unknown'),
-    done: raw.fields?.status?.statusCategory?.key === 'done',
-    url: base ? `${base}/browse/${raw.key}` : '',
-  }));
+  );
+  return items.filter((item): item is WorkItemSummary => item !== null);
 }
 
 /** Confluence byline: the page's confirmed commitments and the Jira work built on them. */

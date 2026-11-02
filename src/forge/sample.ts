@@ -34,11 +34,13 @@ const confluence = (path: ReturnType<typeof route>, method = 'GET', body?: unkno
   });
 
 export async function listSampleTargets() {
-  const [projects, spaces] = await Promise.all([
-    ok(await jira(route`/rest/api/3/project/search?maxResults=50&orderBy=name`), 'list projects'),
+  const [projectResponse, spaceResponse] = await Promise.all([
+    jira(route`/rest/api/3/project/search?maxResults=50&orderBy=name`),
     // Newer sites create "collaboration" and "knowledge_base" spaces, not only "global".
-    ok(await confluence(route`/wiki/api/v2/spaces?limit=100&status=current`), 'list spaces'),
+    confluence(route`/wiki/api/v2/spaces?limit=100&status=current`),
   ]);
+  const projects = await ok(projectResponse, 'list projects');
+  const spaces = await ok(spaceResponse, 'list spaces');
   return {
     projects: (projects.values ?? []).map((p: any) => ({ key: p.key, name: p.name })),
     spaces: (spaces.results ?? [])
@@ -109,7 +111,7 @@ export async function createSampleRelease(input: unknown) {
   if (!issueType) throw new Error('The project has no standard work type for sample items.');
   const me = await ok(await jira(route`/rest/api/3/myself`), 'read your account');
 
-  const stamp = new Date().toISOString().slice(5, 16).replace('T', ' ');
+  const stamp = new Date().toISOString().slice(5, 19).replace('T', ' ');
   const versionName = `Accord sample ${stamp}`;
   const version = await ok(
     await jira(route`/rest/api/3/version`, 'POST', {
