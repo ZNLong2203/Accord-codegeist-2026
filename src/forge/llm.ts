@@ -32,7 +32,8 @@ const TOOL = {
         appliesTo: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Jira work item keys written on the page that this decision governs.',
+          description:
+            'Jira keys written on the page for the work built under this decision. Exclude prerequisites that only need to be finished first.',
         },
         commitments: {
           type: 'array',
@@ -65,7 +66,8 @@ Kinds:
 - stated: a design or policy choice that work will be built against (e.g. "Tokens rotate every 24 hours.").
 - requires_done: the page says work item X must be finished before other work ships. Set issueKey to X.
 - forbids_label: the page says work with a specific Jira label must not ship. Set label.
-- requires_owner: the page says the work needs a named owner or assignee.
+- requires_owner: the page requires that the governed work items have a named owner or assignee.
+  A line naming who owns the decision itself (e.g. "Owner: Security team.") is NOT requires_owner.
 Rules:
 - quote must be ONE sentence copied exactly from the page. Never paraphrase inside quote.
 - Only use Jira keys that literally appear on the page. Do not guess keys.

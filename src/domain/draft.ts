@@ -82,15 +82,26 @@ export function verifyDraft(raw: unknown, pageText: string, pageTitle: string): 
       }
       accepted.push({ ...base, kind: 'forbids_label', label });
     } else if (item.kind === 'requires_owner') {
+      // "Owner: Security team." names who owns the decision; it does not require
+      // that work items have an assignee.
+      if (/^(decision\s+)?owners?\s*[:\-–]/i.test(item.quote.trim())) {
+        reject('This sentence names the decision owner; it does not require work to be assigned.');
+        continue;
+      }
       accepted.push({ ...base, kind: 'requires_owner' });
     } else {
       accepted.push({ ...base, kind: 'stated' });
     }
   }
+  // A prerequisite is checked, not governed: keep it out of the governed scope
+  // unless the page also states a commitment about it directly.
+  const prerequisites = new Set(
+    accepted.flatMap((rule) => (rule.kind === 'requires_done' ? [rule.issueKey] : [])),
+  );
   return {
     title: (draft.title || pageTitle).slice(0, 160),
     owner: draft.owner?.trim() || 'Unassigned',
-    appliesTo,
+    appliesTo: appliesTo.filter((key) => !prerequisites.has(key)),
     accepted: accepted.slice(0, 20),
     rejected,
   };
