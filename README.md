@@ -2,7 +2,7 @@
 
 **Keep the why with the work.**
 
-![Accord local demo with an evidence map and three review signals](docs/images/accord-review.jpg)
+![Accord review room on a Jira site: three signals for a release whose decision changed after the work was Done](docs/images/accord-review.jpg)
 
 Accord is a release review app for Jira and Confluence. It catches the moment a
 decision moves on after the work built on it is already **Done**.
@@ -20,6 +20,8 @@ Atlassian-hosted model, keeps only those that quote the page word for word, and
 lets a human confirm them. From then on every check is deterministic.
 
 ## How it works
+
+![Sentence-level comparison: the old wording, the new wording and the commitment the work was built on](docs/images/accord-compare.jpg)
 
 1. **Write the decision** in Confluence, mentioning the Jira work it governs.
 2. **Draft commitments.** Forge LLM proposes commitments; each must quote a
@@ -136,7 +138,7 @@ development dependency so npm scripts can run Forge CLI 15 on an older host.
 - [Architecture and permission boundaries](docs/architecture.md)
 - [Privacy and retained data](docs/privacy.md)
 - [Rovo and MCP tools](docs/agents.md)
-- [Verification record and limitations](docs/verification.md)
+- [Verification and limits](docs/verification.md)
 - [Contribution conventions](docs/contributing.md)
 
 ## Scope and limits

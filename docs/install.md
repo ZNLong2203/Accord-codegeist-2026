@@ -7,8 +7,8 @@ a site administrator review permissions and install Accord on their own site; it
 does not grant access to the project's developer demo site or its data.
 
 Choose your site, keep Jira selected and connect Confluence on the same site.
-Then follow the [judge walkthrough](judge-guide.md) and
-[reproducible fixture](live-demo.md). No sample data is created automatically.
+Then follow the [judge walkthrough](judge-guide.md). Sample data is created only
+when you choose **Create sample release** and confirm.
 
 Verified on 30 October 2026: the link opens the Accord installation page, displays
 the expected Jira/Confluence permissions and lists the maintainer's eligible

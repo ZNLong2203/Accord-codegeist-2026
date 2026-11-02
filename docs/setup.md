@@ -82,9 +82,8 @@ site; cross-site Confluence sources are not supported.
 The local demo does not provision data in Atlassian. No script creates tenant data
 or changes production issues automatically.
 
-For a complete fixture and expected findings, follow the
-[reproducible tenant demo](live-demo.md). It uses explicitly fictional data in a
-developer site and the same evaluator as the local demo.
+The fastest path is **Settings → Create sample release**, which creates labelled
+fictional data in your own site; see the [judge walkthrough](judge-guide.md).
 
 ## Verify installation before distribution
 

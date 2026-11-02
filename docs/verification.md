@@ -1,179 +1,62 @@
-# Verification record
+# Verification
 
-Date: 30 October 2026, Asia/Ho_Chi_Minh. Updated 2 November 2026 for 3.x.
-
-## 3.x changes awaiting tenant verification
-
-Implemented and tested against mocked Jira, Confluence and Forge LLM responses,
-not yet deployed: Forge LLM drafting with quote verification, confirmed
-commitments stored as a Confluence page property, sentence-level drift
-(`commitment_changed`, formatting-only warnings), the `draft-commitments` action
-and the one-click sample release. Authenticated `forge lint` passes with the new
-`llm` module and scopes and reports that the scope change requires a major
-version upgrade. Before claiming these on Atlassian, verify on a tenant: a real
-Forge LLM call and its latency, page property read/write scopes, the sample
-release in company-managed and team-managed projects, and the upgrade prompt for
-existing installations.
-
-A development-site probe on 2 November called Forge LLM through the same
-`draftWithModel` code (`claude-sonnet-5`, about 4–5 seconds). All quotes were
-grounded and an injected instruction in the page text was ignored. It also showed
-two model mistakes that verification now rejects: a prerequisite listed as governed
-work, and "Owner: …" read as an assignment rule. The temporary probe was removed.
-
-A browser walkthrough of the development site on 2 November created a sample
-release (ACD-8 to ACD-9 and two pages), showed the sentence diff and commitment
-statuses, and drafted commitments through Forge LLM. Teamwork Graph first rejected
-the query names (operations must be named `[company]_[operation]`); after renaming,
-no further Teamwork Graph errors were logged, and the evidence inspector showed the
-decision page's owner returned by `confluencePageOwners`. Goal links
-(`jiraWorkItemGoals`) returned nothing because no goal was linked to the sample
-work; that path is still unexercised with data. Confirming and adopting the new
-decision version cleared the changed-commitment signal while the open prerequisite
-and owner signals remained. A code review then tightened quote matching to
-whole sentences (a negated rewrite no longer counts as stated), per-proposal draft
-validation, token-exact key and label checks, per-key Jira reads in the contextual
-panels, retention of up to 20 confirmed versions and recovery from a malformed
-commitments property.
+What has been checked, how, and what has not. Dates are 2 November 2026.
 
 ## Automated checks
 
-`npm run check` runs TypeScript, Vitest, Vite production build and Atlassian's
-installed local manifest validators. The current suite contains **68 passing tests** in nine files. The staged-file
-guard is also exercised in disposable Git repositories, including a staged secret
-whose working copy has already been cleaned. Coverage includes:
+`npm run check` runs TypeScript, Vitest (86 tests), the Vite production build and
+Atlassian's local manifest validators; `forge lint` passes. Tests cover:
 
-- Done work still affected by a changed decision page and open prerequisite.
-- Scenario isolation and prerequisites outside fixVersion.
-- Unknown results for inaccessible sources, missing dependencies and truncation.
-- Empty-scope handling, prohibited labels and missing owners.
-- Minimum-cost deferral across overlapping decisions and a bounded search.
-- Full observed-input comparison before a human decision is recorded.
-- Parsing only explicit JSON code blocks, rejecting ambiguous/malformed input.
-- Storage-to-text conversion, sentence diffs, verbatim quote matching and
-  formatting-only detection.
-- Rejection of drafted commitments with invented quotes, keys or labels, including
-  a page that contains an injected instruction.
-- Drafting and confirming as the caller; refusal when the page version moved or
-  a quote is not on the page; commitments never written to Jira.
-- A sample release created against an in-memory Jira and Confluence that Accord
-  reads back as one changed commitment, one open prerequisite and one owner gap.
-- Per-user current and historical page reads without `asApp` access.
-- No source text copied into Jira configuration properties.
-- Rejected stale review without a comment mutation.
-- A current explicit review producing the expected Jira comment payload.
-- Dedicated comment-property reads, shared history pagination and retry recovery.
-- Rejection of invalid Accord property metadata before any retry write.
-- Rejected reuse of a request ID with changed content; bounded, fail-closed lookups.
-- Source-field diffs and adoption leaving unrelated signals open.
-- Read-only agent change inspection rejecting inaccessible/unselected pages.
-- Code-block generation and parsing with literal CDATA terminators.
-- Legacy adoption metadata migration without copied reviewer identifiers.
-- Version 2 comment metadata without duplicated rationale; multiline native
-  comment recovery and fail-closed recovery of missing or structurally edited bodies.
+- sentence-level drift, formatting-only edits and negated rewrites that must not
+  count as "still stated";
+- verification of model-drafted commitments: invented quotes, issue keys and
+  labels are rejected, and a page containing an injected instruction cannot add a
+  commitment;
+- drafting and confirming as the calling user, refusal when the page version moved,
+  and commitments never written to Jira;
+- prerequisites, forbidden labels and owners; unknown evidence never becoming a pass;
+- minimum-cost deferral search and scenario isolation;
+- stale-review rejection, idempotent decision records and history recovery;
+- the sample release against an in-memory Jira and Confluence.
 
-`npm audit --omit=dev` reported zero known vulnerabilities on 30 October. On
-2 November it reports six moderate advisories, all transitive through the Forge
-SDK (`@forge/manifest` → `glob`/`minimatch`, GHSA-3g3m-2fjr-6pw4 and
-GHSA-g3hv-75wg-m249), with no upstream fix available yet. A
-transitive `prosemirror-view` override pins 1.42.3 for
-[GHSA-c8x8-7fp4-3x9w](https://github.com/advisories/GHSA-c8x8-7fp4-3x9w).
-This audit result covers production dependencies, not the development toolchain
-or a guarantee that no vulnerabilities exist.
+Adapter tests mock Atlassian HTTP responses: they validate application logic, not
+scopes, network behavior or installation.
 
-Product-adapter tests mock Atlassian HTTP responses. They validate application
-logic, not actual Atlassian scopes, network behavior or installation.
+## Verified on Atlassian
 
-## Browser walkthrough
+Driven in a browser on a Jira and Confluence site, on development and production,
+and on a second site with Rovo. Work items and pages are fictional sample data.
 
-The local interface was exercised through the in-app browser:
+| Capability                    | Result                                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Install, Jira global page     | Custom UI loads in Jira with Forge managed identity                                                                                   |
+| Sample release                | Created in about ten seconds: a version, five work items, two pages, confirmed commitments, a saved baseline and one post-review edit |
+| Sentence drift                | "…was built on a commitment that changed" with the old and new sentences and the Done work                                            |
+| Forge LLM drafting            | `claude-sonnet-5` returned grounded proposals in about 4 to 5 seconds; ungrounded ones were discarded                                 |
+| "What does this change mean?" | Returned an assessment, labelled as an AI opinion, on development and production                                                      |
+| Teamwork Graph                | The decision page's owner was returned and shown with the evidence                                                                    |
+| Jira issue panel              | The "Decisions" panel lists the review's signals and the commitments the work was built on                                            |
+| Confluence button             | "Accord commitments" shows the page's commitments and the Jira work built on them                                                     |
+| View source links             | Open the Jira work item or page in a new tab                                                                                          |
+| Rovo agent                    | `@Accord` read its skill, called the inspect tool and answered with quotes and the snapshot ID                                        |
+| Earlier 2.x flows             | Baseline adoption, what-if, a confirmed Jira comment and shared history were verified on a developer site                             |
 
-Captured screens: [review room](images/accord-review.jpg),
-[contract builder](images/accord-contract-builder.jpg), and
-[source re-review](images/accord-source-review.jpg).
+## Not verified
 
-| Flow                  | Expected behavior                                                              |
-| --------------------- | ------------------------------------------------------------------------------ |
-| Initial review        | 8 scope items, 2 critical signals, 1 ownership warning                         |
-| Smallest deferral     | PLAT-142 deferred; 7 items and only ownership warning remain                   |
-| Return to review      | Scenario explicitly labelled; decision recording disabled                      |
-| Restore current scope | All 3 signals return                                                           |
-| Human review          | Explanation and confirmation required before saving                            |
-| Review history        | Local record includes actor, rationale, snapshot label and 3 signals           |
-| Settings controls     | New fictional source versions and issue changes recompute rules                |
-| Contract builder      | A filled template creates validated JSON and a working demo-library entry      |
-| Source re-review      | Adoption clears the version signal while prerequisite and owner signals remain |
-| Larger typography     | Main text and metadata use larger sizes; light-surface contrast increased      |
-| Mobile layout         | Navigation and scope controls remain usable without page overflow              |
+- **External MCP clients.** OAuth consent fails on Atlassian's side before the
+  callback, so no MCP tool call from an external client has been demonstrated.
+- **Teamwork Graph goals.** `jiraWorkItemGoals` is queried, but the test site has
+  no Goals app, so the path has not returned data.
+- **Restricted users.** Behavior for a second user with partial access, concurrent
+  reviews and stale comment writes under load.
+- **A clean third site** through the installation link, and Marketplace review.
+- No measured customer savings, model accuracy or release-risk reduction has been
+  established; the fixtures are fictional.
 
-See the repository history for the implementation corresponding to this record.
-No measured customer savings, model accuracy, adoption or release risk reduction
-has been established by these fixtures.
+## Known limits
 
-## Authenticated Forge walkthrough
-
-App registration, authenticated `forge lint` and a development deployment have
-passed. The first backend
-bundle exposed a TypeScript `noEmit` conflict with Forge's `ts-loader`; the shared
-configuration now permits emit while local type checks explicitly disable it.
-CLI 15 subsequently confirmed successful installations in Jira and Confluence
-on the same developer site. An authenticated browser walkthrough then used
-fictional Jira and Confluence content, with the following observed results:
-
-| Flow                      | Observed result                                                                                                                                                                                                                                                             |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Load Custom UI            | Accord renders inside Jira with the Forge indicator                                                                                                                                                                                                                         |
-| Adopt initial baseline    | Two published Confluence contracts are read and saved on the Jira review issue                                                                                                                                                                                              |
-| Scan release              | Four included work items, three Done; prerequisite outside fixVersion is still checked                                                                                                                                                                                      |
-| Initial findings          | One critical prerequisite signal and one ownership warning                                                                                                                                                                                                                  |
-| Publish source v2         | Refresh shows reviewed v1 and current v2, adding one critical page-change signal                                                                                                                                                                                            |
-| Inspect source change     | Both historical/current rationales are readable; structured diff identifies one rationale change                                                                                                                                                                            |
-| Find smallest deferral    | Evaluates 15 non-empty candidate scopes; deferring the affected session item leaves three included items, zero critical signals and one ownership warning                                                                                                                   |
-| Return to current scope   | Reset and a fresh Forge scan restore four included items and all three signals                                                                                                                                                                                              |
-| Read shared history       | Jira-backed history loads successfully and is initially empty                                                                                                                                                                                                               |
-| Record decision           | After explicit human confirmation, one labelled demo HOLD comment is posted with four scope keys, three signals and the snapshot label                                                                                                                                      |
-| Verify persistence        | The comment is visible in Jira itself; refreshing shared history reads the same record back from Jira                                                                                                                                                                       |
-| Preview readability       | Comment preview increased from 9px to 14px with darker text; computed styles and wrapping verified locally and after Forge redeployment                                                                                                                                     |
-| Re-review source v2       | Adopting only the security page clears the version signal while the prerequisite and ownership findings remain                                                                                                                                                              |
-| Replay-ready state        | A subsequent source edit restores three signals with reviewed v2 and current v3; the earlier Jira comment remains in shared history                                                                                                                                         |
-| Stale baseline rejection  | A source changed from v3 to v4 while a v3 review remained open; adopting the old snapshot was rejected by the backend without changing the baseline                                                                                                                         |
-| Current re-review         | Refresh and adoption of v4 succeed; prerequisite and ownership signals remain. A later v5 edit restores three signals for replay                                                                                                                                            |
-| Production app            | Production 2.2.0 deploys and installs in Jira and Confluence; Custom UI loads four work items, reviewed v4/current v5 and the existing native HOLD record                                                                                                                   |
-| Distribution page         | Sharing is enabled; the generated link opens the Accord install page with expected permissions and a site picker. A separate Enterprise demo site also accepts production Jira and Confluence installs through the CLI; the full fixture walkthrough there remains pending  |
-| External MCP OAuth        | Exposure enabled in both environments; discovery/registration and Read/Search consent render. Accept returns invalid_request before the callback, including with a fresh registration and exact callback allowlist entry. No token or tool invocation verified              |
-| Second-site MCP OAuth     | After explicit authorization, production exposure and four read scopes were tested on the Enterprise demo site. Consent returns the same invalid_request before the callback; no token or external tool call was received                                                   |
-| Native Rovo negative path | Accord is discoverable on the Enterprise demo site. Rovo debug details and Forge logs confirm an actual inspect-release invocation for ACD-1. The unconfigured site returns a missing-setup error (HTTP 500); the agent reports that limitation without fabricated findings |
-
-The source edit and scope simulation are independent: a simulation does not adopt
-a page version, complete a prerequisite, assign an owner or change Jira scope.
-The exact fixture and reproduction steps are in [live-demo.md](live-demo.md).
-
-## Outstanding external verification
-
-Single-user reads do not establish isolation for a second user with restricted
-access. Verify restricted-user behavior, stale comment writes, happy-path native
-Rovo results for all four actions, external MCP discovery/calls, and a complete
-clean-tenant production walkthrough before treating those capabilities as
-tenant-verified. The second-site native Rovo negative-path invocation establishes
-tool routing and failure reporting only.
-
-Also pending: feedback from release owners, larger real release scans, concurrent
-review behavior, network failures during comment posting, and Marketplace review.
-
-## Browser walkthrough of 3.x, 2 November 2026
-
-Driven in Chrome on accord-codegeist.atlassian.net against development and
-production: View source opens the Jira work item in a new tab; the sample release
-(review ACD-12, work ACD-13 to ACD-16) was created in about ten seconds with three
-signals; the evidence panel showed Teamwork Graph's decision owner; "What does this
-change mean?" returned `claude-sonnet-5` output on both environments; Draft
-commitments returned two grounded proposals; the Jira issue panel listed the
-review's signals on production. Not yet exercised: external MCP (OAuth still fails before the callback).
-
-Rovo agent happy path, one-atlas-ktkx.atlassian.net (Rovo enabled), production 3.x:
-after creating a sample release (review MSD-19) the prompt `@Accord` with the review
-key made the agent run its "Read Skills for agents" step and the "Inspect release
-evidence" tool, then answer with the changed Confluence page, the reviewed and
-current sentences, the prerequisite still in Backlog and the snapshot ID, ending with
-a reminder that a person must record the decision in the Accord app. The answer was
-in Vietnamese, following the account language.
+- Comparison is exact after normalising case, whitespace and typography; it does
+  not judge meaning. The AI assessment is advisory and never changes a signal.
+- The Teamwork Graph API and `rovo:mcp` are Preview features and may change.
+- `npm audit --omit=dev` reports moderate advisories that are transitive through
+  the Forge SDK (`@forge/manifest` to `glob` and `minimatch`) with no upstream fix yet.
