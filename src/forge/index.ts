@@ -12,6 +12,7 @@ import {
   recordDecision,
 } from './service';
 import { createSampleRelease, listSampleTargets } from './sample';
+import { getIssueContext, getPageStatus } from './surfaces';
 import { loadHistory } from './history';
 
 const resolver = new Resolver();
@@ -38,6 +39,8 @@ resolver.define('draftCommitments', async ({ payload }) => draftCommitments(payl
 resolver.define('confirmCommitments', async ({ payload }) => confirmCommitments(payload));
 resolver.define('listSampleTargets', async () => listSampleTargets());
 resolver.define('createSampleRelease', async ({ payload }) => createSampleRelease(payload));
+resolver.define('getPageStatus', async ({ payload }) => getPageStatus(payload));
+resolver.define('getIssueContext', async ({ payload }) => getIssueContext(payload));
 export const handler = resolver.getDefinitions();
 
 /** Rovo/MCP actions are read-only. Human writes remain in the review UI. */

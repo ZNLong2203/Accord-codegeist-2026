@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Check, Quote, Sparkles, Wand2 } from 'lucide-react';
-import type { Rule } from '../domain/schema';
-import { ruleLabel } from '../domain/changes';
-import {
-  createSampleRelease,
-  isLive,
-  listSampleTargets,
-  type CommitmentDraft,
-  type SampleTargets,
-} from './client';
+import { Check, Sparkles, Wand2 } from 'lucide-react';
+import { createSampleRelease, isLive, listSampleTargets, type SampleTargets } from './client';
+import { CommitmentDrafter } from './CommitmentDrafter';
 import { Tag } from './ui';
 
 /** Creates a labelled sample release in the caller's own site, after explicit consent. */
@@ -135,58 +128,17 @@ export function SampleReleaseCard({ onCreated }: { onCreated: (anchor: string) =
 /** Drafts and confirms commitments for a decision page that is not in a review yet. */
 export function ConfirmPageCard() {
   const [pageId, setPageId] = useState('');
-  const [draft, setDraft] = useState<CommitmentDraft | null>(null);
-  const [chosen, setChosen] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [active, setActive] = useState('');
   const [saved, setSaved] = useState('');
-
-  async function run() {
-    setBusy(true);
-    setError('');
-    setSaved('');
-    try {
-      const { invoke } = await import('@forge/bridge');
-      const result = (await invoke('draftCommitments', { pageId: pageId.trim() })) as any;
-      const value: CommitmentDraft = result?.body ?? result;
-      setDraft(value);
-      setChosen(new Set(value.draft.accepted.map((rule) => rule.id)));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not draft commitments.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirm() {
-    if (!draft) return;
-    setBusy(true);
-    setError('');
-    try {
-      const { invoke } = await import('@forge/bridge');
-      await invoke('confirmCommitments', {
-        pageId: draft.pageId,
-        pageVersion: draft.pageVersion,
-        title: draft.draft.title,
-        owner: draft.draft.owner,
-        appliesTo: draft.draft.appliesTo,
-        rules: draft.draft.accepted.filter((rule: Rule) => chosen.has(rule.id)),
-      });
-      setSaved(`Saved on page ${draft.pageId} for v${draft.pageVersion}.`);
-      setDraft(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not confirm the commitments.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <section className="panel settings-card">
       <div className="section-top">
         <div>
           <h2>Add a decision page</h2>
-          <p>Write decisions in plain language. Accord proposes the commitments; you confirm.</p>
+          <p>
+            Write decisions in plain language. Accord proposes the commitments; you confirm. You can
+            also do this from the Accord button on any Confluence page.
+          </p>
         </div>
         <Sparkles size={18} />
       </div>
@@ -196,68 +148,32 @@ export function ConfirmPageCard() {
           placeholder="Confluence page ID, e.g. 327681"
           value={pageId}
           inputMode="numeric"
-          onChange={(e) => setPageId(e.target.value.replace(/\D/g, ''))}
+          onChange={(e) => {
+            setPageId(e.target.value.replace(/\D/g, ''));
+            setActive('');
+          }}
         />
-        <button className="button secondary" disabled={!pageId || busy} onClick={run}>
-          {busy && !draft ? 'Reading…' : 'Draft commitments'}
+        <button
+          className="button secondary"
+          disabled={!pageId || pageId === active}
+          onClick={() => {
+            setActive(pageId);
+            setSaved('');
+          }}
+        >
+          Use this page
         </button>
       </div>
-      {draft && (
-        <div className="draft-list">
-          <p className="fineprint">
-            {draft.pageTitle} · v{draft.pageVersion} · applies to{' '}
-            {draft.draft.appliesTo.join(', ') || 'no work item written on the page'}
-          </p>
-          {draft.draft.accepted.map((rule) => (
-            <label key={rule.id} className="draft-item">
-              <input
-                type="checkbox"
-                checked={chosen.has(rule.id)}
-                onChange={(e) =>
-                  setChosen((previous) => {
-                    const next = new Set(previous);
-                    if (e.target.checked) next.add(rule.id);
-                    else next.delete(rule.id);
-                    return next;
-                  })
-                }
-              />
-              <span>
-                <strong>{ruleLabel(rule)}</strong>
-                <span>{rule.summary}</span>
-                <blockquote>
-                  <Quote size={12} aria-hidden="true" /> {rule.quote}
-                </blockquote>
-              </span>
-            </label>
-          ))}
-          {draft.draft.rejected.length > 0 && (
-            <p className="fineprint">
-              {draft.draft.rejected.length} ungrounded proposal(s) discarded.
-            </p>
-          )}
-          <button
-            className="button primary"
-            disabled={busy || chosen.size === 0 || draft.draft.appliesTo.length === 0}
-            onClick={confirm}
-          >
-            <Check size={15} /> Confirm {chosen.size} commitment{chosen.size === 1 ? '' : 's'}
-          </button>
-          {draft.draft.appliesTo.length === 0 && (
-            <p className="fineprint">
-              Mention the Jira work item keys this decision governs on the page, then draft again.
-            </p>
-          )}
-        </div>
+      {active && !saved && (
+        <CommitmentDrafter
+          key={active}
+          pageId={active}
+          onConfirmed={(version) => setSaved(`Saved on page ${active} for v${version}.`)}
+        />
       )}
       {saved && (
         <p className="sample-done">
           <Check size={15} /> {saved} <Tag tone="success">Confirmed</Tag>
-        </p>
-      )}
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
         </p>
       )}
     </section>

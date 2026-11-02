@@ -10,6 +10,12 @@ import type {
 import { createDemoSnapshot } from '../domain/demo';
 import { assess, snapshotId, snapshotToken } from '../domain/engine';
 import { adoptDemoDecision } from '../domain/changes';
+import {
+  issueContext,
+  pageStatus,
+  type IssueReviewContext,
+  type PageStatus,
+} from '../domain/context';
 function unwrap<T>(value: T | { body: T; metadata?: unknown }): T {
   return value && typeof value === 'object' && 'body' in value ? value.body : (value as T);
 }
@@ -226,4 +232,46 @@ export async function reviewBaseline(snapshot: Snapshot, pageId: string): Promis
 export function resetDemo() {
   localStorage.removeItem(storageKey);
   localStorage.removeItem(historyKey);
+}
+
+export async function getPageStatus(pageId: string): Promise<PageStatus> {
+  if (isLive) {
+    const { invoke } = await import('@forge/bridge');
+    return unwrap(await invoke<PageStatus>('getPageStatus', { pageId }));
+  }
+  const snapshot = await getSnapshot('');
+  const decision =
+    snapshot.decisions.find((item) => item.pageId === pageId) ?? snapshot.decisions[0];
+  return pageStatus({
+    pageId: decision.pageId,
+    title: decision.title,
+    currentVersion: decision.currentVersion,
+    confirmedVersion: decision.reviewedVersion,
+    contract: decision.contract,
+    confirmedText: decision.reviewedText ?? null,
+    currentText: decision.currentText ?? decision.currentExcerpt,
+    issues: snapshot.issues.map((issue) => ({
+      key: issue.key,
+      summary: issue.summary,
+      status: issue.status,
+      done: issue.statusCategory === 'done',
+      url: issue.url,
+    })),
+  });
+}
+
+export interface IssueContextResult {
+  reviews: IssueReviewContext[];
+  reason: 'no-release' | 'search-unavailable' | 'no-review' | null;
+}
+
+export async function getIssueContext(issueKey: string): Promise<IssueContextResult> {
+  if (isLive) {
+    const { invoke } = await import('@forge/bridge');
+    return unwrap(await invoke<IssueContextResult>('getIssueContext', { issueKey }));
+  }
+  const context = issueContext(await getSnapshot(''), issueKey);
+  return context.decisions.length || context.findings.length
+    ? { reviews: [context], reason: null }
+    : { reviews: [], reason: 'no-review' };
 }

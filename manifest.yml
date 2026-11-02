@@ -6,6 +6,31 @@ modules:
         function: resolver
       title: Accord
       layout: blank
+  jira:issueContext:
+    - key: accord-issue-decisions
+      resource: accord-ui
+      resolver:
+        function: resolver
+      title: Decisions
+      label: Decisions behind this work
+  jira:entityProperty:
+    - key: accord-review-index
+      entityType: issue
+      propertyKey: accord.configuration.v1
+      values:
+        - path: configuration.project
+          type: string
+          searchAlias: accordReviewProject
+        - path: configuration.version
+          type: string
+          searchAlias: accordReviewVersion
+  confluence:contentBylineItem:
+    - key: accord-page-commitments
+      resource: accord-ui
+      resolver:
+        function: resolver
+      title: Accord commitments
+      tooltip: What this decision commits the team to, and the Jira work built on it
   function:
     - key: resolver
       handler: forge/index.handler

@@ -53,7 +53,7 @@ async function jsonResponse(response: Response, source: string): Promise<any> {
   return response.json();
 }
 
-async function getPage(pageId: string, version?: number) {
+export async function getPage(pageId: string, version?: number) {
   const response = await api
     .asUser()
     .requestConfluence(
@@ -64,7 +64,7 @@ async function getPage(pageId: string, version?: number) {
   return jsonResponse(response, 'Confluence');
 }
 
-function legacyContract(storage: string): Contract | null {
+export function legacyContract(storage: string): Contract | null {
   try {
     return parseContract(storage);
   } catch {
@@ -149,7 +149,7 @@ function mapIssue(raw: any, inScope: boolean, siteUrl: string): Issue {
   };
 }
 
-function escapeJql(value: string): string {
+export function escapeJql(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
