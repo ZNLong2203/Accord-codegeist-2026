@@ -1,4 +1,8 @@
-# Reproduce the Forge demo
+# Reproduce the Forge demo by hand
+
+The fastest path is **Settings → Create sample release**; see the
+[judge walkthrough](judge-guide.md). This page documents the original manual
+2.x fixture, which uses legacy JSON code blocks and remains supported.
 
 Use a developer site with Jira and Confluence connected to the same Accord
 installation. All content below is fictional test data, including the initial

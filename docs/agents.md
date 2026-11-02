@@ -4,15 +4,21 @@ The manifest defines a Rovo agent and exposes four existing Forge actions via
 `rovo:mcp`. Both use the same source service and deterministic evaluator as the
 Custom UI. There is no separate external MCP server or client-side API secret.
 
-| Action            | Inputs                                        | Output                                                               |
-| ----------------- | --------------------------------------------- | -------------------------------------------------------------------- |
-| `inspect-release` | `anchorIssue`                                 | Current assessment, evidence, scope and snapshot label               |
-| `simulate-scope`  | `anchorIssue`, comma-separated `excludedKeys` | Recomputed hypothetical assessment; explicitly labelled as simulated |
-| `suggest-scope`   | `anchorIssue`                                 | Minimum-cost qualifying deferral, or null if unavailable             |
+| Action              | Inputs                                        | Output                                                               |
+| ------------------- | --------------------------------------------- | -------------------------------------------------------------------- |
+| `inspect-release`   | `anchorIssue`                                 | Current assessment, evidence, scope and snapshot label               |
+| `simulate-scope`    | `anchorIssue`, comma-separated `excludedKeys` | Recomputed hypothetical assessment; explicitly labelled as simulated |
+| `suggest-scope`     | `anchorIssue`                                 | Minimum-cost qualifying deferral, or null if unavailable             |
+| `draft-commitments` | `pageId`                                      | Proposed commitments with verbatim quotes, plus discarded proposals  |
 
 `decision-change` takes `anchorIssue` and a selected numeric `pageId`. It returns
 reviewed/current versions, source excerpts and structured contract differences.
 Unreadable or unselected sources are rejected. It cannot adopt a new baseline.
+
+`draft-commitments` reads one page the caller can read and asks Forge LLM to
+propose commitments. Accord verifies each quote against the page before returning
+it, so an agent can cite exact sentences. Nothing is confirmed or stored; a human
+confirms commitments in the Accord UI. See [decision commitments](contracts.md).
 
 All actions declare `actionVerb: GET`, call product APIs as the user, and are
 read-only. They cannot save a baseline, write comments, edit Jira, or approve a

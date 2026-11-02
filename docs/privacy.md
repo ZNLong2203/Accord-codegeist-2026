@@ -1,6 +1,6 @@
 # Accord privacy notice
 
-Effective date: 30 October 2026. Maintainer: ZNLong2203.
+Effective date: 2 November 2026. Maintainer: ZNLong2203.
 
 Accord is a release review app running on Atlassian Forge. This notice describes
 the repository implementation, including its optional local demo. It does not
@@ -23,6 +23,12 @@ release settings, page IDs, reviewed versions and bounded adoption metadata
 contract owners, assignee details or reviewer account IDs into this property.
 Updating an older baseline strips legacy copied reviewer IDs.
 
+Confirmed commitments are stored on the Confluence decision page itself, as the
+`accord-commitments` content property: the confirmed page version, a timestamp
+and the commitments (summary, verbatim source sentence, governed issue keys and
+the owner name written on the page). They share the page's visibility and are
+not copied into Jira. The property keeps at most five confirmed versions.
+
 A review is stored as a native Jira comment, attributed by Jira to its author.
 The visible comment contains the human's rationale, selected issue keys and
 finding summaries. The associated `accord.review.v1` property uses schema version
@@ -37,7 +43,26 @@ must inspect their rationale before sharing it with the review issue's audience.
 The browser retains the selected review issue and interface preferences locally.
 The standalone demo also retains fictional edits and review records in browser
 storage. Accord has no external database, cross-user source cache, advertising
-tracker, third-party analytics SDK or external model API in its runtime.
+tracker, third-party analytics SDK or model API outside Atlassian in its runtime.
+
+## Drafting with Forge LLM
+
+Only when a user chooses **Draft commitments** (or a Rovo/MCP client calls the
+read-only `draft-commitments` action) does Accord send that page's title and
+plain text to an Atlassian-hosted Claude model through
+[Forge LLM](https://developer.atlassian.com/platform/forge/runtime-reference/forge-llms-api/).
+The page is read as the caller first, so a user cannot draft from a page they
+cannot read. Scans, diffs and rule evaluation never call a model. Accord does not
+store the prompt or the model response; the user confirms which proposals to keep.
+Model processing is governed by Atlassian's Forge LLM terms.
+
+## Sample release
+
+**Create sample release** writes, as the caller and after explicit consent, one
+Jira version, five work items labelled `accord-sample`, two Confluence pages and
+their commitments, the review configuration and one page edit. Nothing else is
+modified. Delete the sample items, version and pages with the normal Jira and
+Confluence tools.
 
 ## Rovo, MCP and operational logs
 

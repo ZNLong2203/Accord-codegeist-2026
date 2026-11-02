@@ -92,13 +92,26 @@ network response; concurrent requests and eventual consistency still prevent an
 exactly-once guarantee across clients. The record
 describes what was observed, not a lock on the release.
 
+## Commitments and drift
+
+Confirmed commitments are a Confluence content property (`accord-commitments`)
+keyed by page version. A scan reads the reviewed and current page versions as the
+caller, converts storage XHTML to plain text and compares sentences. The model is
+used only by `draftCommitments`, through forced tool use, and every proposal must
+pass `verifyDraft` in `src/domain/draft.ts`. `confirmCommitments` re-reads the
+page, requires the drafted version and re-checks every quote before writing. See
+[decision commitments](contracts.md).
+
 ## Operational bounds
 
 - Up to 10 decision pages, each at most 250,000 JavaScript string units when parsing.
 - At most 5 pages of 100 Jira search results; further results make coverage partial.
 - Up to 20 rules and 50 explicit applicable issue keys per contract.
 - Required dependencies are individually read, including those outside fixVersion.
-- No background monitoring, user-independent cache, external LLM or external egress.
+- Drafting sends at most 40,000 characters of one page's text to Forge LLM, only on
+  an explicit draft request; the model output is verified before it is shown.
+- No background monitoring, user-independent cache, model outside Atlassian or
+  external egress.
 - Manual refresh; tenant latency and Forge invocation limits need load testing.
 
 The application is not a Teamwork Graph integration. Rovo/MCP modules reuse the

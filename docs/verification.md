@@ -1,11 +1,24 @@
 # Verification record
 
-Date: 30 October 2026, Asia/Ho_Chi_Minh.
+Date: 30 October 2026, Asia/Ho_Chi_Minh. Updated 2 November 2026 for 3.x.
+
+## 3.x changes awaiting tenant verification
+
+Implemented and tested against mocked Jira, Confluence and Forge LLM responses,
+not yet deployed: Forge LLM drafting with quote verification, confirmed
+commitments stored as a Confluence page property, sentence-level drift
+(`commitment_changed`, formatting-only warnings), the `draft-commitments` action
+and the one-click sample release. Authenticated `forge lint` passes with the new
+`llm` module and scopes and reports that the scope change requires a major
+version upgrade. Before claiming these on Atlassian, verify on a tenant: a real
+Forge LLM call and its latency, page property read/write scopes, the sample
+release in company-managed and team-managed projects, and the upgrade prompt for
+existing installations.
 
 ## Automated checks
 
 `npm run check` runs TypeScript, Vitest, Vite production build and Atlassian's
-installed local manifest validators. The current suite contains **51 passing tests** in six files. The staged-file
+installed local manifest validators. The current suite contains **68 passing tests** in nine files. The staged-file
 guard is also exercised in disposable Git repositories, including a staged secret
 whose working copy has already been cleaned. Coverage includes:
 
@@ -16,6 +29,14 @@ whose working copy has already been cleaned. Coverage includes:
 - Minimum-cost deferral across overlapping decisions and a bounded search.
 - Full observed-input comparison before a human decision is recorded.
 - Parsing only explicit JSON code blocks, rejecting ambiguous/malformed input.
+- Storage-to-text conversion, sentence diffs, verbatim quote matching and
+  formatting-only detection.
+- Rejection of drafted commitments with invented quotes, keys or labels, including
+  a page that contains an injected instruction.
+- Drafting and confirming as the caller; refusal when the page version moved or
+  a quote is not on the page; commitments never written to Jira.
+- A sample release created against an in-memory Jira and Confluence that Accord
+  reads back as one changed commitment, one open prerequisite and one owner gap.
 - Per-user current and historical page reads without `asApp` access.
 - No source text copied into Jira configuration properties.
 - Rejected stale review without a comment mutation.
@@ -30,7 +51,10 @@ whose working copy has already been cleaned. Coverage includes:
 - Version 2 comment metadata without duplicated rationale; multiline native
   comment recovery and fail-closed recovery of missing or structurally edited bodies.
 
-`npm audit --omit=dev` reported zero known vulnerabilities on this date. A
+`npm audit --omit=dev` reported zero known vulnerabilities on 30 October. On
+2 November it reports six moderate advisories, all transitive through the Forge
+SDK (`@forge/manifest` → `glob`/`minimatch`, GHSA-3g3m-2fjr-6pw4 and
+GHSA-g3hv-75wg-m249), with no upstream fix available yet. A
 transitive `prosemirror-view` override pins 1.42.3 for
 [GHSA-c8x8-7fp4-3x9w](https://github.com/advisories/GHSA-c8x8-7fp4-3x9w).
 This audit result covers production dependencies, not the development toolchain
