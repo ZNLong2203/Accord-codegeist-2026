@@ -20,6 +20,32 @@ const issue = (
   url: `https://example.atlassian.net/browse/${key}`,
 });
 
+const SECURITY_V3 = [
+  'Session security & token rotation',
+  'Context: the refresh-token session flow (PLAT-142) replaces long-lived browser sessions for every customer.',
+  'Decision: Refresh tokens rotate every 24 hours.',
+  'PLAT-142 must not ship until the rotation regression suite PLAT-139 is Done.',
+  'Owner: Maya Chen, Security.',
+].join('\n');
+const SECURITY_V4 = [
+  'Session security & token rotation',
+  'Context: the refresh-token session flow (PLAT-142) replaces long-lived browser sessions for every customer.',
+  'Decision: Refresh tokens rotate on every use, and reusing an old refresh token revokes the whole session.',
+  'Updated after the 28 October penetration test.',
+  'PLAT-142 must not ship until the rotation regression suite PLAT-139 is Done.',
+  'Owner: Maya Chen, Security.',
+].join('\n');
+const ROLLOUT = [
+  'Progressive delivery playbook',
+  'Every canary rollout needs a named owner for the rollout and rollback window.',
+  'PLAT-148 follows this playbook for release 2.8.',
+].join('\n');
+const API = [
+  'API compatibility promise',
+  'The public API remains backwards compatible for the October release.',
+  'Work labelled breaking-change cannot ship under this promise. It covers PLAT-145 and PLAT-146.',
+].join('\n');
+
 const decisions: Decision[] = [
   {
     id: 'token-policy',
@@ -31,24 +57,56 @@ const decisions: Decision[] = [
     currentVersion: 4,
     updated: '2026-10-29T08:40:00Z',
     accessible: true,
-    reviewedExcerpt:
-      'Rotate refresh tokens daily. Rotation regression tests must pass before the session flow ships.',
+    reviewedExcerpt: 'Refresh tokens rotate every 24 hours.',
     currentExcerpt:
-      'Rotate refresh tokens on every use. Rotation regression tests must pass before the new session flow ships.',
+      'Refresh tokens rotate on every use, and reusing an old refresh token revokes the whole session.',
+    reviewedText: SECURITY_V3,
+    currentText: SECURITY_V4,
     contract: {
       schemaVersion: 1,
       title: 'Session security & token rotation',
       owner: 'Maya Chen',
-      rationale:
-        'A session release must meet the agreed security baseline before it reaches customers.',
+      rationale: 'Refresh tokens rotate every 24 hours.',
       appliesTo: ['PLAT-142'],
       rules: [
+        {
+          id: 'rotation-policy',
+          kind: 'stated',
+          summary: 'Refresh tokens rotate every 24 hours.',
+          quote: 'Refresh tokens rotate every 24 hours.',
+        },
         {
           id: 'rotation-tests',
           kind: 'requires_done',
           issueKey: 'PLAT-139',
           summary:
             'Token rotation regression tests must be Done before the session refresh flow ships.',
+          quote: 'PLAT-142 must not ship until the rotation regression suite PLAT-139 is Done.',
+        },
+      ],
+    },
+    currentContract: {
+      schemaVersion: 1,
+      title: 'Session security & token rotation',
+      owner: 'Maya Chen',
+      rationale:
+        'Refresh tokens rotate on every use, and reusing an old refresh token revokes the whole session.',
+      appliesTo: ['PLAT-142'],
+      rules: [
+        {
+          id: 'rotation-policy',
+          kind: 'stated',
+          summary: 'Refresh tokens rotate on every use; reuse revokes the session.',
+          quote:
+            'Refresh tokens rotate on every use, and reusing an old refresh token revokes the whole session.',
+        },
+        {
+          id: 'rotation-tests',
+          kind: 'requires_done',
+          issueKey: 'PLAT-139',
+          summary:
+            'Token rotation regression tests must be Done before the session refresh flow ships.',
+          quote: 'PLAT-142 must not ship until the rotation regression suite PLAT-139 is Done.',
         },
       ],
     },
@@ -63,19 +121,23 @@ const decisions: Decision[] = [
     currentVersion: 6,
     updated: '2026-10-28T13:00:00Z',
     accessible: true,
-    reviewedExcerpt: 'Assign a named owner for the canary rollout and rollback window.',
-    currentExcerpt: 'Assign a named owner for the canary rollout and rollback window.',
+    reviewedExcerpt:
+      'Every canary rollout needs a named owner for the rollout and rollback window.',
+    currentExcerpt: 'Every canary rollout needs a named owner for the rollout and rollback window.',
+    reviewedText: ROLLOUT,
+    currentText: ROLLOUT,
     contract: {
       schemaVersion: 1,
       title: 'Progressive delivery playbook',
       owner: 'Jonah Rivera',
-      rationale: 'Someone needs to own the rollback decision during the release window.',
+      rationale: 'Every canary rollout needs a named owner for the rollout and rollback window.',
       appliesTo: ['PLAT-148'],
       rules: [
         {
           id: 'rollout-owner',
           kind: 'requires_owner',
           summary: 'Every rollout task needs a named owner before the release window.',
+          quote: 'Every canary rollout needs a named owner for the rollout and rollback window.',
         },
       ],
     },
@@ -92,11 +154,13 @@ const decisions: Decision[] = [
     accessible: true,
     reviewedExcerpt: 'The public API remains backwards compatible for the October release.',
     currentExcerpt: 'The public API remains backwards compatible for the October release.',
+    reviewedText: API,
+    currentText: API,
     contract: {
       schemaVersion: 1,
       title: 'API compatibility promise',
       owner: 'Priya Shah',
-      rationale: 'Existing integrations must keep working.',
+      rationale: 'The public API remains backwards compatible for the October release.',
       appliesTo: ['PLAT-145', 'PLAT-146'],
       rules: [
         {
@@ -104,6 +168,7 @@ const decisions: Decision[] = [
           kind: 'forbids_label',
           label: 'breaking-change',
           summary: 'No work labelled breaking-change can ship under this compatibility decision.',
+          quote: 'Work labelled breaking-change cannot ship under this promise.',
         },
       ],
     },
@@ -134,8 +199,8 @@ export function createDemoSnapshot(): Snapshot {
     ],
     decisions: decisions.map((decision) => ({
       ...decision,
-      contract: { ...decision.contract, rationale: decision.reviewedExcerpt },
-      currentContract: { ...decision.contract, rationale: decision.currentExcerpt },
+      currentAppliesTo: (decision.currentContract ?? decision.contract).appliesTo,
+      currentContract: decision.currentContract ?? decision.contract,
     })),
     coverage: { complete: true, warnings: [] },
   } satisfies Snapshot);

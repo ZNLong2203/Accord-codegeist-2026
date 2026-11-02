@@ -1,0 +1,126 @@
+import { z } from 'zod';
+import { contractSchema, issueKey, type Contract, type Rule } from './schema';
+import { containsQuote, issueKeysIn, normalise } from './text';
+
+/**
+ * A model may only *propose* commitments. Every proposal must quote the page
+ * verbatim and may only reference issue keys present on the page. Proposals
+ * that fail are returned as rejected with a reason, never silently repaired.
+ */
+export const draftCommitmentSchema = z.object({
+  kind: z.enum(['stated', 'requires_done', 'forbids_label', 'requires_owner']),
+  summary: z.string().trim().min(1).max(300),
+  quote: z.string().trim().min(1).max(500),
+  issueKey: z.string().trim().max(80).optional().nullable(),
+  label: z.string().trim().max(100).optional().nullable(),
+});
+export const draftSchema = z.object({
+  title: z.string().trim().max(160).optional().nullable(),
+  owner: z.string().trim().max(100).optional().nullable(),
+  appliesTo: z.array(z.string().trim().max(80)).max(50).default([]),
+  commitments: z.array(draftCommitmentSchema).max(25),
+});
+export type DraftCommitment = z.infer<typeof draftCommitmentSchema>;
+
+export interface VerifiedDraft {
+  title: string;
+  owner: string;
+  appliesTo: string[];
+  accepted: Rule[];
+  rejected: { summary: string; quote: string; reason: string }[];
+}
+
+function slug(value: string): string {
+  return (
+    normalise(value)
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'commitment'
+  );
+}
+
+export function verifyDraft(raw: unknown, pageText: string, pageTitle: string): VerifiedDraft {
+  const draft = draftSchema.parse(raw);
+  const keysOnPage = new Set(issueKeysIn(pageText));
+  const appliesTo = [...new Set(draft.appliesTo.map((key) => key.toUpperCase()))].filter(
+    (key) => issueKey.safeParse(key).success && keysOnPage.has(key),
+  );
+  const accepted: Rule[] = [];
+  const rejected: VerifiedDraft['rejected'] = [];
+  const seen = new Set<string>();
+  const ids = new Set<string>();
+  for (const item of draft.commitments) {
+    const reject = (reason: string) =>
+      rejected.push({ summary: item.summary, quote: item.quote, reason });
+    if (!containsQuote(pageText, item.quote)) {
+      reject('The quoted sentence does not appear on the page.');
+      continue;
+    }
+    const fingerprint = `${item.kind}:${normalise(item.quote)}:${item.issueKey ?? ''}:${item.label ?? ''}`;
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    let id = slug(item.summary);
+    for (let n = 2; ids.has(id); n++) id = `${slug(item.summary)}-${n}`;
+    ids.add(id);
+    const base = { id, summary: item.summary, quote: item.quote };
+    if (item.kind === 'requires_done') {
+      const key = item.issueKey?.toUpperCase() ?? '';
+      if (!issueKey.safeParse(key).success || !keysOnPage.has(key)) {
+        reject('The prerequisite must be a Jira key written on the page.');
+        continue;
+      }
+      if (!normalise(item.quote).includes(key.toLowerCase())) {
+        reject('The quote must name the prerequisite work item.');
+        continue;
+      }
+      accepted.push({ ...base, kind: 'requires_done', issueKey: key });
+    } else if (item.kind === 'forbids_label') {
+      const label = item.label?.trim() ?? '';
+      if (!label || !normalise(pageText).includes(normalise(label))) {
+        reject('The forbidden label must be written on the page.');
+        continue;
+      }
+      accepted.push({ ...base, kind: 'forbids_label', label });
+    } else if (item.kind === 'requires_owner') {
+      accepted.push({ ...base, kind: 'requires_owner' });
+    } else {
+      accepted.push({ ...base, kind: 'stated' });
+    }
+  }
+  return {
+    title: (draft.title || pageTitle).slice(0, 160),
+    owner: draft.owner?.trim() || 'Unassigned',
+    appliesTo,
+    accepted: accepted.slice(0, 20),
+    rejected,
+  };
+}
+
+/** Builds the contract a human confirms. Throws when it is not grounded in the page. */
+export function confirmedContract(
+  input: { title: string; owner: string; appliesTo: string[]; rules: Rule[] },
+  pageText: string,
+): Contract {
+  const contract = contractSchema.parse({
+    schemaVersion: 1,
+    title: input.title,
+    owner: input.owner,
+    rationale:
+      input.rules.find((rule) => rule.kind === 'stated')?.quote ??
+      input.rules[0]?.quote ??
+      input.title,
+    appliesTo: input.appliesTo,
+    rules: input.rules,
+  });
+  assertGrounded(contract, pageText);
+  return contract;
+}
+
+export function assertGrounded(contract: Contract, pageText: string) {
+  if (!contract.rules.length) throw new Error('Confirm at least one commitment.');
+  for (const rule of contract.rules) {
+    if (!rule.quote) throw new Error(`“${rule.summary}” needs a source sentence from the page.`);
+    if (!containsQuote(pageText, rule.quote))
+      throw new Error(`“${rule.quote}” is not on the current page. Refresh and draft again.`);
+  }
+}

@@ -8,9 +8,17 @@ import {
 } from '../src/domain/engine';
 
 describe('release commitments', () => {
-  it('catches page edits and an open prerequisite even when dependent work is Done', () => {
+  it('catches a changed commitment and an open prerequisite even when dependent work is Done', () => {
     const result = assess(createDemoSnapshot());
-    expect(result.findings.map((f) => f.kind)).toEqual(['page_changed', 'dependency', 'owner']);
+    expect(result.findings.map((f) => f.kind)).toEqual([
+      'commitment_changed',
+      'dependency',
+      'owner',
+    ]);
+    const drift = result.findings[0];
+    expect(drift.title).toBe('PLAT-142 was built on a commitment that changed');
+    expect(drift.evidence[0].detail).toContain('rotate every 24 hours');
+    expect(drift.evidence[1].detail).toContain('rotate on every use');
     expect(result.findings.filter((f) => f.severity === 'critical')).toHaveLength(2);
     expect(result.scope).toHaveLength(8);
     expect(result.verdict).toBe('review');
@@ -37,7 +45,7 @@ describe('release commitments', () => {
     const snapshot = createDemoSnapshot();
     snapshot.decisions[0].currentAppliesTo = ['PLAT-149'];
     const result = assess(snapshot, ['PLAT-142']);
-    expect(result.findings.find((f) => f.kind === 'page_changed')?.affectedKeys).toEqual([
+    expect(result.findings.find((f) => f.kind === 'commitment_changed')?.affectedKeys).toEqual([
       'PLAT-149',
     ]);
     expect(result.findings.some((f) => f.kind === 'dependency')).toBe(false);
@@ -84,7 +92,31 @@ describe('release commitments', () => {
     snapshot.issues.find((i) => i.key === 'PLAT-139')!.statusCategory = 'done';
     snapshot.issues.find((i) => i.key === 'PLAT-148')!.assignee = 'Jonah Rivera';
     expect(assess(snapshot).verdict).toBe('clear');
-    expect(assess(snapshot).checkedRules).toBe(6);
+    expect(assess(snapshot).checkedRules).toBe(7);
+  });
+
+  it('downgrades a formatting-only edit to a warning', () => {
+    const snapshot = createDemoSnapshot();
+    const decision = snapshot.decisions[0];
+    decision.currentText = decision.reviewedText!.replace('24 hours.', '24  hours!').toUpperCase();
+    const finding = assess(snapshot).findings.find((f) => f.decisionId === decision.id);
+    expect(finding).toMatchObject({ kind: 'page_changed', severity: 'warning' });
+  });
+
+  it('keeps a substantive edit critical even when every commitment is still stated', () => {
+    const snapshot = createDemoSnapshot();
+    const decision = snapshot.decisions[0];
+    decision.currentText = `${decision.reviewedText}\nAdmins may extend sessions to 30 days.`;
+    const finding = assess(snapshot).findings.find((f) => f.decisionId === decision.id);
+    expect(finding).toMatchObject({ kind: 'page_changed', severity: 'critical' });
+    expect(finding?.explanation).toContain('1 sentence changed');
+  });
+
+  it('falls back to a version signal when page text is unavailable', () => {
+    const snapshot = createDemoSnapshot();
+    delete snapshot.decisions[0].currentText;
+    const finding = assess(snapshot).findings.find((f) => f.decisionId === 'token-policy');
+    expect(finding).toMatchObject({ kind: 'page_changed', severity: 'critical' });
   });
 });
 

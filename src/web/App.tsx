@@ -149,11 +149,7 @@ export function App() {
     if (kind === 'page') {
       const decision = next.decisions[0];
       decision.currentVersion += 1;
-      decision.currentExcerpt = `Rotate refresh tokens on every use. Review the rollback window for source version ${decision.currentVersion}.`;
-      decision.currentContract = {
-        ...(decision.currentContract ?? decision.contract),
-        rationale: decision.currentExcerpt,
-      };
+      decision.currentText = `${decision.currentText ?? decision.currentExcerpt}\nVersion ${decision.currentVersion} adds a reviewer note on the rollback window.`;
       decision.updated = new Date().toISOString();
     } else if (kind === 'tests') {
       const issue = next.issues.find((issue) => issue.key === 'PLAT-139')!;

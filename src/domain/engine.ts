@@ -1,4 +1,5 @@
-import type { Assessment, Finding, Snapshot } from './schema';
+import type { Assessment, Decision, Finding, Snapshot } from './schema';
+import { containsQuote, isCosmeticChange, likelyReplacement, sentenceDiff } from './text';
 
 /** Compare complete observed inputs; capture time and presentation order are irrelevant. */
 export function snapshotToken(snapshot: Snapshot): string {
@@ -88,31 +89,8 @@ export function assess(snapshot: Snapshot, exclude: string[] = []): Assessment {
     )
       continue;
     checkedRules++;
-    if (decision.currentVersion !== decision.reviewedVersion) {
-      findings.push({
-        id: `${decision.id}:version`,
-        kind: 'page_changed',
-        severity: 'critical',
-        title: 'The decision page changed after review',
-        explanation: `Confluence is at v${decision.currentVersion}; this release was reviewed against v${decision.reviewedVersion}. A page edit is a review signal, not proof of a semantic contradiction.`,
-        decisionId: decision.id,
-        affectedKeys: changedPageKeys,
-        evidence: [
-          {
-            label: 'Reviewed baseline',
-            detail: `v${decision.reviewedVersion} · ${decision.reviewedExcerpt}`,
-          },
-          {
-            label: 'Current source',
-            detail: `v${decision.currentVersion} · ${decision.currentExcerpt}`,
-            url: decision.url,
-          },
-          { label: 'Release scope', detail: changedPageKeys.join(', ') },
-        ],
-        remedy:
-          'Have a reviewer inspect the source changes, or defer the affected scope. A comment does not reapprove the baseline.',
-      });
-    }
+    if (decision.currentVersion !== decision.reviewedVersion)
+      findings.push(...versionFindings(snapshot, decision, changedPageKeys, affectedKeys));
     if (affectedKeys.length === 0) continue;
     for (const rule of decision.contract.rules) {
       checkedRules++;
@@ -175,6 +153,8 @@ export function assess(snapshot: Snapshot, exclude: string[] = []): Assessment {
             ],
             remedy: 'Inspect and correct the Jira evidence or defer the affected work.',
           });
+      } else if (rule.kind === 'stated') {
+        // Tracked through its source sentence in versionFindings; no Jira field to check.
       } else if (rule.kind === 'requires_owner') {
         const unowned = scope.filter(
           (issue) => affectedKeys.includes(issue.key) && !issue.assignee,
@@ -207,6 +187,109 @@ export function assess(snapshot: Snapshot, exclude: string[] = []): Assessment {
       ? 'review'
       : 'clear';
   return { findings, scope, excludedKeys, verdict, checkedRules };
+}
+
+/**
+ * Turns a page version change into the most specific signal the evidence supports:
+ * a commitment whose source sentence disappeared, a substantive edit, or a
+ * formatting-only edit. Without page text it falls back to a version signal.
+ */
+function versionFindings(
+  snapshot: Snapshot,
+  decision: Decision,
+  changedPageKeys: string[],
+  affectedKeys: string[],
+): Finding[] {
+  const { reviewedText, currentText } = decision;
+  const versions = `v${decision.reviewedVersion} → v${decision.currentVersion}`;
+  const generic = (detail: string): Finding => ({
+    id: `${decision.id}:version`,
+    kind: 'page_changed',
+    severity: 'critical',
+    title: 'The decision page changed after review',
+    explanation: `Confluence is at v${decision.currentVersion}; this release was reviewed against v${decision.reviewedVersion}. ${detail}`,
+    decisionId: decision.id,
+    affectedKeys: changedPageKeys,
+    evidence: [
+      {
+        label: 'Reviewed baseline',
+        detail: `v${decision.reviewedVersion} · ${decision.reviewedExcerpt}`,
+      },
+      {
+        label: 'Current source',
+        detail: `v${decision.currentVersion} · ${decision.currentExcerpt}`,
+        url: decision.url,
+      },
+      { label: 'Release scope', detail: changedPageKeys.join(', ') },
+    ],
+    remedy:
+      'Compare the versions and re-confirm the commitments, or defer the affected scope. A comment does not reapprove the baseline.',
+  });
+  if (reviewedText === undefined || currentText === undefined)
+    return [generic('Open the comparison to see what changed.')];
+
+  const changes = sentenceDiff(reviewedText, currentText);
+  const changedSentences = changes.filter((change) => change.kind !== 'same').length;
+  const lost = decision.contract.rules.filter(
+    (rule) => rule.quote && !containsQuote(currentText, rule.quote),
+  );
+  if (lost.length) {
+    const status = (key: string) => {
+      const issue = snapshot.issues.find((item) => item.key === key);
+      return issue ? `${key} · ${issue.summary} · ${issue.status}` : key;
+    };
+    return lost.map((rule) => {
+      const replacement = likelyReplacement(rule.quote!, changes);
+      const done = affectedKeys.filter(
+        (key) => snapshot.issues.find((issue) => issue.key === key)?.statusCategory === 'done',
+      );
+      const keys = affectedKeys.length ? affectedKeys : changedPageKeys;
+      return {
+        id: `${decision.id}:${rule.id}:source`,
+        kind: 'commitment_changed',
+        severity: 'critical',
+        title: done.length
+          ? `${done.join(', ')} ${done.length === 1 ? 'was' : 'were'} built on a commitment that changed`
+          : 'A confirmed commitment changed at its source',
+        explanation: `The sentence this commitment was confirmed from is no longer on the page (${versions}).${
+          replacement
+            ? ' A similar sentence now reads differently.'
+            : ' No similar sentence remains.'
+        }`,
+        decisionId: decision.id,
+        affectedKeys: keys,
+        evidence: [
+          {
+            label: `Confirmed in v${decision.reviewedVersion}`,
+            detail: `“${rule.quote}”`,
+          },
+          {
+            label: `Now in v${decision.currentVersion}`,
+            detail: replacement ? `“${replacement}”` : 'Sentence removed.',
+            url: decision.url,
+          },
+          ...keys.map((key) => ({ label: 'Work built on it', detail: status(key) })),
+        ],
+        remedy: done.length
+          ? 'Check whether the finished work still matches the decision, then re-confirm the commitments or reopen the work.'
+          : 'Re-confirm the commitments against the current page before the work ships.',
+      } satisfies Finding;
+    });
+  }
+  if (isCosmeticChange(reviewedText, currentText))
+    return [
+      {
+        ...generic('Only formatting, punctuation or letter case changed.'),
+        severity: 'warning',
+        title: 'The decision page was reformatted',
+        remedy: 'Confirm the new version when convenient; every commitment is still stated.',
+      },
+    ];
+  return [
+    generic(
+      `${changedSentences} sentence${changedSentences === 1 ? '' : 's'} changed. Every confirmed commitment is still stated, but new text may add obligations.`,
+    ),
+  ];
 }
 
 export interface ScopePlan {

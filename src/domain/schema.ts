@@ -4,6 +4,8 @@ export const issueKey = z
   .string()
   .regex(/^[A-Z][A-Z0-9_]*-\d+$/)
   .max(80);
+/** Verbatim source sentence. Required for AI-drafted rules; optional for legacy JSON. */
+const quote = z.string().min(8).max(500).optional();
 export const ruleSchema = z.discriminatedUnion('kind', [
   z
     .object({
@@ -11,6 +13,7 @@ export const ruleSchema = z.discriminatedUnion('kind', [
       kind: z.literal('requires_done'),
       issueKey,
       summary: z.string().min(1).max(300),
+      quote,
     })
     .strict(),
   z
@@ -19,6 +22,7 @@ export const ruleSchema = z.discriminatedUnion('kind', [
       kind: z.literal('forbids_label'),
       label: z.string().min(1).max(100),
       summary: z.string().min(1).max(300),
+      quote,
     })
     .strict(),
   z
@@ -26,9 +30,21 @@ export const ruleSchema = z.discriminatedUnion('kind', [
       id: z.string().min(1).max(80),
       kind: z.literal('requires_owner'),
       summary: z.string().min(1).max(300),
+      quote,
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1).max(80),
+      // A design commitment that work is built against. It is tracked through its
+      // source sentence: Done work built on a sentence that later changed is drift.
+      kind: z.literal('stated'),
+      summary: z.string().min(1).max(300),
+      quote: z.string().min(8).max(500),
     })
     .strict(),
 ]);
+export type Rule = z.infer<typeof ruleSchema>;
 export const contractSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -70,6 +86,9 @@ export interface Decision {
   currentExcerpt: string;
   currentAppliesTo?: string[];
   currentContract?: Contract;
+  /** Plain text of the reviewed and current page versions, read as the caller. */
+  reviewedText?: string;
+  currentText?: string;
   updated: string;
   accessible: boolean;
   contract: Contract;
@@ -91,7 +110,8 @@ export interface Snapshot {
 }
 export interface Finding {
   id: string;
-  kind: 'page_changed' | 'dependency' | 'forbidden_label' | 'owner' | 'unknown';
+  kind:
+    'page_changed' | 'commitment_changed' | 'dependency' | 'forbidden_label' | 'owner' | 'unknown';
   severity: 'critical' | 'warning' | 'unknown';
   title: string;
   explanation: string;
