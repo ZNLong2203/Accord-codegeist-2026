@@ -95,6 +95,13 @@ export function SampleReleaseCard({ onCreated }: { onCreated: (anchor: string) =
               </select>
             </label>
           </div>
+          {targets && (!targets.projects.length || !targets.spaces.length) && (
+            <p className="form-error" role="alert">
+              {!targets.projects.length
+                ? 'No Jira project is visible to you. Create one, then reload.'
+                : 'No Confluence space is visible to Accord. Check that the app is installed in Confluence on this site and that you can view a space.'}
+            </p>
+          )}
           <label className="confirmation">
             <input
               type="checkbox"

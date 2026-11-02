@@ -105,6 +105,17 @@ svg {
   display: flex;
   flex-direction: column;
   z-index: 30;
+  /* Inside Jira the frame can be shorter than the navigation: let it scroll. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-height: 860px) {
+  .sidebar-note {
+    display: none;
+  }
+  .sidebar {
+    padding-top: 20px;
+  }
 }
 .brand {
   display: flex;
@@ -3895,6 +3906,11 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+}
+.sample-targets .form-field {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
 }
 .sample-targets select {
   width: 100%;

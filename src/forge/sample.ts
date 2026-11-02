@@ -36,11 +36,15 @@ const confluence = (path: ReturnType<typeof route>, method = 'GET', body?: unkno
 export async function listSampleTargets() {
   const [projects, spaces] = await Promise.all([
     ok(await jira(route`/rest/api/3/project/search?maxResults=50&orderBy=name`), 'list projects'),
-    ok(await confluence(route`/wiki/api/v2/spaces?limit=50&type=global`), 'list spaces'),
+    // Newer sites create "collaboration" and "knowledge_base" spaces, not only "global".
+    ok(await confluence(route`/wiki/api/v2/spaces?limit=100&status=current`), 'list spaces'),
   ]);
   return {
     projects: (projects.values ?? []).map((p: any) => ({ key: p.key, name: p.name })),
-    spaces: (spaces.results ?? []).map((s: any) => ({ key: s.key, name: s.name })),
+    spaces: (spaces.results ?? [])
+      .filter((s: any) => s.type !== 'personal')
+      .map((s: any) => ({ key: s.key, name: s.name }))
+      .sort((a: any, b: any) => String(a.name).localeCompare(String(b.name))),
   };
 }
 
