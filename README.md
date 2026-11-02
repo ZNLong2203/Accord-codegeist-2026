@@ -82,7 +82,7 @@ property storage, sentence-level drift, sample release, issue and page surfaces,
 Teamwork Graph context) pass unit and adapter tests against mocked Atlassian
 APIs. On the development site, a browser walkthrough created a sample release,
 drafted commitments with Forge LLM, confirmed and adopted a new decision version,
-and showed a decision owner returned by Teamwork Graph. Production was deployed as 3.x on 2 November and upgraded on both demo sites. In a browser it opened a review, showed the decision owner from Teamwork Graph and returned a Forge LLM assessment of a rewritten commitment; the Jira issue panel also ran there. The Rovo agent still needs a full run on a site with Rovo. External MCP
+and showed a decision owner returned by Teamwork Graph. Production was deployed as 3.x on 2 November and upgraded on both demo sites. In a browser it opened a review, showed the decision owner from Teamwork Graph and returned a Forge LLM assessment of a rewritten commitment; the Jira issue panel also ran there. On a second site with Rovo, `@Accord` read its skill, called the inspect action on a fresh sample review and answered with the old and new sentences, the open prerequisite and the snapshot ID. External MCP clients are still blocked by an OAuth error on Atlassian's side. External MCP
 OAuth currently fails before the client callback and is under investigation with
 Atlassian. See [verification](docs/verification.md).
 

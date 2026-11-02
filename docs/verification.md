@@ -168,5 +168,12 @@ production: View source opens the Jira work item in a new tab; the sample releas
 signals; the evidence panel showed Teamwork Graph's decision owner; "What does this
 change mean?" returned `claude-sonnet-5` output on both environments; Draft
 commitments returned two grounded proposals; the Jira issue panel listed the
-review's signals on production. Not yet exercised: the Rovo agent happy path and
-external MCP (OAuth still fails before the callback).
+review's signals on production. Not yet exercised: external MCP (OAuth still fails before the callback).
+
+Rovo agent happy path, one-atlas-ktkx.atlassian.net (Rovo enabled), production 3.x:
+after creating a sample release (review MSD-19) the prompt `@Accord` with the review
+key made the agent run its "Read Skills for agents" step and the "Inspect release
+evidence" tool, then answer with the changed Confluence page, the reviewed and
+current sentences, the prerequisite still in Backlog and the snapshot ID, ending with
+a reminder that a person must record the decision in the Accord app. The answer was
+in Vietnamese, following the account language.
