@@ -56,7 +56,7 @@ describe('Teamwork Graph queries', () => {
         return ok({
           errors: [{ message: "Cannot query field 'accountId' on type 'AtlassianUser'" }],
         });
-      if (query.includes('AccordDecisionPeople'))
+      if (query.includes('accord_decisionPeople'))
         return ok({ data: { o0: { edges: [{ node: { name: 'Maya' } }] }, c0: { edges: [] } } });
       return ok({ data: { g0: { edges: [{ node: { name: 'Safer logins' } }] } } });
     });
@@ -71,6 +71,7 @@ describe('Teamwork Graph queries', () => {
     expect(variables.p0).toBe(`ari:cloud:confluence:${CLOUD}:page/327681`);
     expect(mocks.graph.mock.calls.at(-1)?.[1].i0).toBe(`ari:cloud:jira:${CLOUD}:issue/10004`);
     expect(JSON.stringify(mocks.warn.mock.calls)).not.toContain('Maya');
+    for (const call of mocks.graph.mock.calls) expect(call[2]).toMatch(/^[a-z]{3,}_[A-Za-z]{4,}$/);
   });
 
   it('reports unavailable instead of failing the review', async () => {

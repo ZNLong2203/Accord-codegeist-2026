@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, CircleSlash, Quote, Sparkles } from 'lucide-react';
 import { ruleLabel } from '../domain/changes';
 import type { Rule } from '../domain/schema';
-import { draftCommitments, getSnapshot, isLive, type CommitmentDraft } from './client';
+import { draftCommitments, isLive, type CommitmentDraft } from './client';
 
 /**
  * Drafts commitments for one page, lets a human pick the grounded ones and
@@ -26,7 +26,7 @@ export function CommitmentDrafter({
     setBusy('draft');
     setError('');
     try {
-      const result = await draftCommitments(await getSnapshot(''), pageId);
+      const result = await draftCommitments(null, pageId);
       setDraft(result);
       setChosen(new Set(result.draft.accepted.map((rule) => rule.id)));
     } catch (e) {

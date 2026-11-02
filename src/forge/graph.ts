@@ -18,7 +18,9 @@ type GraphResult = {
 };
 
 async function request(query: string, variables: Record<string, unknown>): Promise<GraphResult> {
-  const response = await api.asUser().requestTeamworkGraph(query, variables);
+  // Teamwork Graph requires named operations shaped `[company]_[operation]`.
+  const operationName = /query\s+([A-Za-z0-9_]+)/.exec(query)?.[1];
+  const response = await api.asUser().requestTeamworkGraph(query, variables, operationName);
   if (!response.ok) return { errors: [{ message: `HTTP ${response.status}` }] };
   return (await response.json()) as GraphResult;
 }
@@ -92,7 +94,7 @@ export async function loadGraphContext(input: unknown, cloudId: string): Promise
       'user',
       (selection) => {
         const user = `edges { node { __typename ... on AtlassianUser { ${selection} } } }`;
-        return `query AccordDecisionPeople(${pageIds.map((_, i) => `$p${i}: ID!`).join(', ')}) {
+        return `query accord_decisionPeople(${pageIds.map((_, i) => `$p${i}: ID!`).join(', ')}) {
 ${pageIds
   .map(
     (_, i) =>
@@ -118,7 +120,7 @@ ${pageIds
     );
     const result = await withSelection(
       'goal',
-      (selection) => `query AccordWorkGoals(${issues.map((_, i) => `$i${i}: ID!`).join(', ')}) {
+      (selection) => `query accord_workGoals(${issues.map((_, i) => `$i${i}: ID!`).join(', ')}) {
 ${issues
   .map(
     (_, i) =>

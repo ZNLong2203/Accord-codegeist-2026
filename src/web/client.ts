@@ -116,14 +116,16 @@ export interface CommitmentDraft {
 
 /** Live: Forge LLM drafts from the page. Demo: the fixture's prepared draft, labelled as such. */
 export async function draftCommitments(
-  snapshot: Snapshot,
+  snapshot: Snapshot | null,
   pageId: string,
 ): Promise<CommitmentDraft> {
   if (isLive) {
     const { invoke } = await import('@forge/bridge');
     return unwrap(await invoke<CommitmentDraft>('draftCommitments', { pageId }));
   }
-  const decision = snapshot.decisions.find((item) => item.pageId === pageId);
+  const decision = (snapshot ?? (await getSnapshot(''))).decisions.find(
+    (item) => item.pageId === pageId,
+  );
   if (!decision?.currentContract) throw new Error('This demo page has no prepared draft.');
   await new Promise((resolve) => setTimeout(resolve, 700));
   const contract = decision.currentContract;

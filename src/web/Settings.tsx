@@ -66,8 +66,10 @@ export function Settings({
     <div className="settings-grid">
       <SampleReleaseCard
         onCreated={(created) => {
+          // The new review issue is stored before reloading, like a saved configuration.
+          localStorage.setItem('accord.anchor', created);
           setAnchor(created);
-          onLoaded();
+          window.location.reload();
         }}
       />
       <section className="panel settings-card">
