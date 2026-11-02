@@ -4,7 +4,7 @@ import { ruleLabel } from '../domain/changes';
 import type { PageStatus, RuleStatus } from '../domain/context';
 import { getIssueContext, getPageStatus, isLive, type IssueContextResult } from './client';
 import { CommitmentDrafter } from './CommitmentDrafter';
-import { Logo, Tag } from './ui';
+import { Logo, Tag, openSource } from './ui';
 
 const AGENT = { type: 'forge' as const, agentKey: 'accord-reviewer', agentName: 'Accord' };
 
@@ -215,7 +215,15 @@ export function IssueDecisions({ issueKey }: { issueKey: string }) {
             <section key={decision.title}>
               <h2 className="decision-heading">
                 {decision.url ? (
-                  <a href={decision.url} target="_blank" rel="noreferrer">
+                  <a
+                    href={decision.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void openSource(decision.url);
+                    }}
+                  >
                     {decision.title} <ExternalLink size={12} />
                   </a>
                 ) : (

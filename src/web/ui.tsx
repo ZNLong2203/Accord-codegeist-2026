@@ -41,6 +41,16 @@ function safeSourceUrl(url: string) {
     url.startsWith('/wiki/')
   );
 }
+/** Forge Custom UI runs in a sandboxed frame, so links must open through the host router. */
+export async function openSource(url: string) {
+  try {
+    const { router } = await import('@forge/bridge');
+    await router.open(url);
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 export function SourceLink({
   url,
   demo,
@@ -58,7 +68,15 @@ export function SourceLink({
       </span>
     );
   return (
-    <a href={url} target="_blank" rel="noreferrer">
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(event) => {
+        event.preventDefault();
+        void openSource(url);
+      }}
+    >
       {children}
       <ExternalLink size={12} />
     </a>
