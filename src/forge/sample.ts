@@ -42,7 +42,19 @@ export async function listSampleTargets() {
   const projects = await ok(projectResponse, 'list projects');
   const spaces = await ok(spaceResponse, 'list spaces');
   return {
-    projects: (projects.values ?? []).map((p: any) => ({ key: p.key, name: p.name })),
+    // Releases and Task work items need a company-managed software or business project;
+    // service desks and product discovery spaces cannot hold the sample.
+    projects: (projects.values ?? [])
+      .filter(
+        (p: any) =>
+          p.style !== 'next-gen' && ['software', 'business'].includes(String(p.projectTypeKey)),
+      )
+      .sort(
+        (a: any, b: any) =>
+          Number(b.projectTypeKey === 'software') - Number(a.projectTypeKey === 'software') ||
+          String(a.name).localeCompare(String(b.name)),
+      )
+      .map((p: any) => ({ key: p.key, name: p.name })),
     spaces: (spaces.results ?? [])
       .filter((s: any) => s.type !== 'personal')
       .map((s: any) => ({ key: s.key, name: s.name }))

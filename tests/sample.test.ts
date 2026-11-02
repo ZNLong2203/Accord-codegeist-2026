@@ -14,7 +14,7 @@ vi.mock('@forge/api', () => ({
       '',
     ),
 }));
-import { createSampleRelease } from '../src/forge/sample';
+import { createSampleRelease, listSampleTargets } from '../src/forge/sample';
 import { loadSnapshot } from '../src/forge/service';
 import { assess, findSmallestSafeScope } from '../src/domain/engine';
 
@@ -130,6 +130,32 @@ function fakeSite(options: { doneTransition?: boolean } = {}) {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+describe('sample targets', () => {
+  it('lists only projects that can hold a release, software first', async () => {
+    mocks.jira.mockResolvedValue(
+      reply({
+        values: [
+          { key: 'CLSD', name: 'Service Desk', projectTypeKey: 'service_desk', style: 'classic' },
+          { key: 'TM', name: 'Team managed', projectTypeKey: 'software', style: 'next-gen' },
+          { key: 'BIZ', name: 'Alpha business', projectTypeKey: 'business', style: 'classic' },
+          { key: 'ZED', name: 'Zed software', projectTypeKey: 'software', style: 'classic' },
+        ],
+      }),
+    );
+    mocks.confluence.mockResolvedValue(
+      reply({
+        results: [
+          { key: 'P', name: 'Me', type: 'personal' },
+          { key: 'ENG', name: 'Eng', type: 'global' },
+        ],
+      }),
+    );
+    const targets = await listSampleTargets();
+    expect(targets.projects.map((p: any) => p.key)).toEqual(['ZED', 'BIZ']);
+    expect(targets.spaces.map((s: any) => s.key)).toEqual(['ENG']);
+  });
+});
 
 describe('one-click sample release', () => {
   it('creates real-shaped evidence that Accord reads back as three signals', async () => {
