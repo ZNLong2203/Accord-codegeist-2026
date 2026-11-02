@@ -11,6 +11,7 @@ import { createDemoSnapshot } from '../domain/demo';
 import { assess, snapshotId, snapshotToken } from '../domain/engine';
 import { adoptDemoDecision } from '../domain/changes';
 import type { GraphContext } from '../domain/graph';
+import type { ChangeAssessment } from '../domain/drift';
 import {
   issueContext,
   pageStatus,
@@ -320,4 +321,27 @@ export async function getGraphContext(snapshot: Snapshot): Promise<GraphContext>
   } catch {
     return { source: 'teamwork-graph', available: false, people: {}, goals: {} };
   }
+}
+
+/** Live: Forge LLM compares the old and new wording. Demo: a labelled prepared answer. */
+export async function explainChange(
+  snapshot: Snapshot,
+  findingId: string,
+): Promise<ChangeAssessment> {
+  if (isLive) {
+    const { invoke } = await import('@forge/bridge');
+    return unwrap(
+      await invoke<ChangeAssessment>('explainChange', {
+        anchorIssue: snapshot.release.anchorIssue,
+        findingId,
+      }),
+    );
+  }
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  return {
+    relation: 'contradicts',
+    reason:
+      'Rotating on every use is stricter than daily rotation, so work built to the 24-hour rule no longer matches the decision.',
+    model: 'Prepared demo answer · no model call',
+  };
 }

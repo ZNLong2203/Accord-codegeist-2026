@@ -4124,3 +4124,30 @@ textarea::placeholder {
   letter-spacing: 0.4px;
   text-transform: uppercase;
 }
+.change-meaning {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin: 14px 0;
+}
+.change-meaning small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.change-meaning.answered {
+  border: 1px solid #e1e8d2;
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fbfdf5;
+  justify-items: stretch;
+}
+.change-meaning.answered.contradicts {
+  border-left-color: var(--critical);
+  background: var(--critical-bg);
+}
+.change-meaning.answered p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}

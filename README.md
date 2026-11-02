@@ -102,7 +102,7 @@ flowchart LR
   B --> H[Confirmed human review → Jira comment]
 ```
 
-The model only proposes. Verification, drift detection, rule evaluation and the
+The model only proposes or advises: it drafts commitments and, on request, says whether a rewrite contradicts, weakens or strengthens the old wording. That opinion never changes a signal. Verification, drift detection, rule evaluation and the
 deferral search are plain TypeScript in `src/domain/`, shared by the UI, resolvers
 and agent actions. Missing or unreadable evidence is reported as unknown, never as
 clear. Accord asks Teamwork Graph, as the user and through curated queries, who

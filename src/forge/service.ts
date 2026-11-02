@@ -15,7 +15,8 @@ import { storageToText } from '../domain/text';
 import type { Contract, Rule } from '../domain/schema';
 import { findRecordedRequest, reviewPropertyKey } from './history';
 import { contractAt, readConfirmations, saveConfirmation } from './commitments';
-import { draftWithModel } from './llm';
+import { assessChangeWithModel, draftWithModel } from './llm';
+import { likelyReplacement, sentenceDiff } from '../domain/text';
 
 const propertyKey = 'accord.configuration.v1';
 const storedSchema = z.object({
@@ -458,4 +459,32 @@ export async function confirmCommitments(input: unknown) {
   );
   await saveConfirmation(validated.pageId, validated.pageVersion, contract);
   return { pageId: validated.pageId, pageVersion: validated.pageVersion, contract };
+}
+
+/**
+ * Asks the model how a rewritten commitment relates to the one the work was built
+ * on. The texts are derived on the server from the caller's own reads, never
+ * taken from the client. The answer is advisory and changes no finding.
+ */
+export async function explainChange(anchor: string, input: unknown, siteUrl: string) {
+  const { findingId } = z
+    .object({ findingId: z.string().max(200) })
+    .strict()
+    .parse(input);
+  const snapshot = await loadSnapshot(anchor, siteUrl);
+  const finding = assess(snapshot).findings.find((item) => item.id === findingId);
+  if (finding?.kind !== 'commitment_changed' || !finding.decisionId)
+    throw new Error('Only a changed commitment can be assessed.');
+  const decision = snapshot.decisions.find((item) => item.id === finding.decisionId);
+  const rule = decision?.contract.rules.find(
+    (item) => `${decision.id}:${item.id}:source` === finding.id,
+  );
+  if (!decision?.accessible || !rule?.quote || decision.currentText === undefined)
+    throw new Error('The source text is unavailable to you.');
+  const changes = sentenceDiff(decision.reviewedText ?? '', decision.currentText);
+  const added = changes.filter((change) => change.kind === 'added').map((change) => change.text);
+  const after =
+    likelyReplacement(rule.quote, changes) ??
+    (added.length ? added.slice(0, 4).join(' ') : 'The sentence was removed.');
+  return assessChangeWithModel(rule.quote, after);
 }

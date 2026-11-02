@@ -178,3 +178,19 @@ describe('draft verification edge cases', () => {
     expect(result.rejected).toHaveLength(2);
   });
 });
+
+import { parseAssessment } from '../src/domain/drift';
+
+describe('change assessment parsing', () => {
+  it('accepts a valid relation and turns anything else into unclear', () => {
+    expect(parseAssessment({ relation: 'contradicts', reason: 'Stricter than before.' })).toEqual({
+      relation: 'contradicts',
+      reason: 'Stricter than before.',
+    });
+    expect(parseAssessment({ relation: 'safe to ship', reason: 'ok' }).relation).toBe('unclear');
+    expect(parseAssessment(null).relation).toBe('unclear');
+    expect(parseAssessment({ relation: 'weakens', reason: 'x'.repeat(900) }).relation).toBe(
+      'unclear',
+    );
+  });
+});

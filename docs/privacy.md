@@ -52,7 +52,10 @@ read-only `draft-commitments` action) does Accord send that page's title and
 plain text to an Atlassian-hosted Claude model through
 [Forge LLM](https://developer.atlassian.com/platform/forge/runtime-reference/forge-llms-api/).
 The page is read as the caller first, so a user cannot draft from a page they
-cannot read. Scans, diffs and rule evaluation never call a model. Accord does not
+cannot read. **What does this change mean?** in the evidence panel sends only the old confirmed
+sentence and the new wording of the page text (at most a few sentences) to the
+same model, and only when the user presses it. Scans, diffs and rule evaluation
+never call a model. Accord does not
 store the prompt or the model response; the user confirms which proposals to keep.
 Model processing is governed by Atlassian's Forge LLM terms.
 

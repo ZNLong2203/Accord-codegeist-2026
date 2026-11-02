@@ -10,6 +10,7 @@ import {
   configure,
   confirmCommitments,
   draftCommitments,
+  explainChange,
   loadSnapshot,
   recordDecision,
 } from './service';
@@ -47,6 +48,10 @@ resolver.define('getIssueContext', async ({ payload }) => getIssueContext(payloa
 resolver.define('getGraphContext', async ({ payload, context }) =>
   loadGraphContext(payload, String(context.cloudId ?? '')),
 );
+resolver.define('explainChange', async ({ payload, context }) => {
+  const { anchorIssue } = anchorSchema.parse(payload);
+  return explainChange(anchorIssue, { findingId: payload.findingId }, context.siteUrl);
+});
 export const handler = resolver.getDefinitions();
 
 /** Rovo/MCP actions are read-only. Human writes remain in the review UI. */

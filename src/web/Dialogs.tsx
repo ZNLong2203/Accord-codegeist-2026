@@ -10,11 +10,13 @@ import {
   MessageSquare,
   ShieldCheck,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { buildDecisionText, snapshotId, snapshotToken } from '../domain/engine';
 import type { Decision, DecisionRecord, Finding, Snapshot } from '../domain/schema';
 import { goalsAtStake, type GraphContext } from '../domain/graph';
-import { record } from './client';
+import { explainChange, record } from './client';
+import { relationLabel, type ChangeAssessment } from '../domain/drift';
 import { Logo, SourceIcon, SourceLink, Tag } from './ui';
 import { useDialogFocus } from './useDialogFocus';
 export function Inspector({
@@ -86,6 +88,9 @@ export function Inspector({
               </div>
               <SourceIcon type="confluence" />
             </div>
+          )}
+          {finding?.kind === 'commitment_changed' && (
+            <ChangeMeaning snapshot={snapshot} findingId={finding.id} />
           )}
           <GraphNotes
             graph={graph}
@@ -455,6 +460,46 @@ function GraphNotes({
           <p>{goals.map((goal) => goal.name).join(' · ')}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/** On-demand model opinion on what a rewrite means. Never changes a result. */
+function ChangeMeaning({ snapshot, findingId }: { snapshot: Snapshot; findingId: string }) {
+  const [result, setResult] = useState<ChangeAssessment | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function run() {
+    setBusy(true);
+    setError('');
+    try {
+      setResult(await explainChange(snapshot, findingId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The change could not be assessed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!result)
+    return (
+      <div className="change-meaning">
+        <button className="button secondary compact" onClick={run} disabled={busy}>
+          <Sparkles size={14} />
+          {busy ? 'Reading both versions…' : 'What does this change mean?'}
+        </button>
+        <small>Sends the two sentences to Forge LLM. Advisory only.</small>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  return (
+    <div className={`change-meaning answered ${result.relation}`}>
+      <strong>{relationLabel[result.relation]}</strong>
+      <p>{result.reason}</p>
+      <small>AI opinion · {result.model}. It does not change any signal.</small>
     </div>
   );
 }

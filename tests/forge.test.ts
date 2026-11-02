@@ -28,6 +28,7 @@ import {
   configure,
   confirmCommitments,
   draftCommitments,
+  explainChange,
   loadSnapshot,
   recordDecision,
 } from '../src/forge/service';
@@ -637,5 +638,88 @@ describe('AI-drafted commitments on Forge', () => {
         rules: [{ id: 'x', kind: 'stated', summary: 'Weekly', quote: 'Tokens rotate weekly.' }],
       }),
     ).rejects.toThrow(/not on the current page/);
+  });
+});
+
+describe('advisory change assessment', () => {
+  it('derives both texts on the server and rejects other findings', async () => {
+    const prose = (version: number, sentence: string) => ({
+      id: '1001',
+      spaceId: '42',
+      title: 'Security decision',
+      version: { number: version, createdAt: '2026-11-01T09:00:00Z' },
+      body: { storage: { value: `<p>${sentence}</p>` } },
+    });
+    mocks.confluence.mockImplementation(async (path: string) => {
+      if (path.includes('/properties'))
+        return response({
+          results: [
+            {
+              id: '9',
+              version: { number: 1 },
+              value: {
+                schemaVersion: 1,
+                confirmations: [
+                  {
+                    pageVersion: 3,
+                    confirmedAt: '2026-11-01T00:00:00Z',
+                    contract: {
+                      ...contract,
+                      appliesTo: ['PLAT-142'],
+                      rules: [
+                        {
+                          id: 'rotation',
+                          kind: 'stated',
+                          summary: 'Daily',
+                          quote: 'Refresh tokens rotate every 24 hours.',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      return response(
+        path.includes('version=3')
+          ? prose(3, 'Refresh tokens rotate every 24 hours.')
+          : prose(4, 'Refresh tokens rotate on every use.'),
+      );
+    });
+    mocks.chat.mockResolvedValue({
+      choices: [
+        {
+          finish_reason: 'tool_use',
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [
+              {
+                id: '1',
+                type: 'function',
+                index: 0,
+                function: {
+                  name: 'assess_change',
+                  arguments: { relation: 'weakens', reason: 'Asks for less.' },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const result = await explainChange(
+      'PLAT-150',
+      { findingId: '1001:rotation:source' },
+      'https://demo.atlassian.net',
+    );
+    expect(result).toMatchObject({ relation: 'weakens', model: 'claude-sonnet-5' });
+    const prompt = JSON.stringify(mocks.chat.mock.calls.at(-1)?.[0]);
+    expect(prompt).toContain('rotate every 24 hours');
+    expect(prompt).toContain('rotate on every use');
+    await expect(
+      explainChange('PLAT-150', { findingId: '1001:version' }, 'https://demo.atlassian.net'),
+    ).rejects.toThrow('Only a changed commitment');
   });
 });
