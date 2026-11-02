@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDemoSnapshot } from '../src/domain/demo';
 
-const mocks = vi.hoisted(() => ({ jira: vi.fn(), confluence: vi.fn(), asApp: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  jira: vi.fn(),
+  confluence: vi.fn(),
+  asApp: vi.fn(),
+  chat: vi.fn(),
+}));
+vi.mock('@forge/llm', () => ({
+  chat: mocks.chat,
+  list: async () => ({ models: [{ model: 'claude-sonnet-5', status: 'active' }] }),
+}));
 vi.mock('@forge/api', () => ({
   default: {
     asUser: () => ({ requestJira: mocks.jira, requestConfluence: mocks.confluence }),
@@ -14,7 +23,14 @@ vi.mock('@forge/api', () => ({
       '',
     ),
 }));
-import { adoptBaseline, configure, loadSnapshot, recordDecision } from '../src/forge/service';
+import {
+  adoptBaseline,
+  configure,
+  confirmCommitments,
+  draftCommitments,
+  loadSnapshot,
+  recordDecision,
+} from '../src/forge/service';
 import { commentRecord, loadHistory, reviewPropertyKey } from '../src/forge/history';
 import { snapshotToken } from '../src/domain/engine';
 
@@ -75,7 +91,9 @@ beforeEach(() => {
     throw new Error(`Unexpected path ${path}`);
   });
   mocks.confluence.mockImplementation(async (path: string) =>
-    response(path.includes('version=3') ? page(3) : page(4, 'Changed rationale')),
+    path.includes('/properties')
+      ? response({ results: [] })
+      : response(path.includes('version=3') ? page(3) : page(4, 'Changed rationale')),
   );
 });
 
@@ -498,5 +516,126 @@ describe('reviewing one changed baseline', () => {
       ),
     ).rejects.toThrow('evidence changed');
     expect(mocks.jira.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(false);
+  });
+});
+
+describe('AI-drafted commitments on Forge', () => {
+  const prose = (version: number, sentence: string) => ({
+    id: '2001',
+    spaceId: '42',
+    title: 'Token policy',
+    version: { number: version, createdAt: '2026-11-01T09:00:00Z' },
+    body: {
+      storage: {
+        value: `<p>${sentence}</p><p>PLAT-142 must not ship until PLAT-139 is Done.</p>`,
+      },
+    },
+  });
+  let property: any = null;
+  beforeEach(() => {
+    property = null;
+    mocks.confluence.mockImplementation(async (path: string, options?: any) => {
+      if (path.includes('/properties')) {
+        if (options?.method === 'POST' || options?.method === 'PUT') {
+          property = { id: '9', version: { number: 1 }, ...JSON.parse(options.body) };
+          return response(property, 200);
+        }
+        return response({ results: property ? [property] : [] });
+      }
+      return response(prose(2, 'Refresh tokens rotate every 24 hours.'));
+    });
+    mocks.chat.mockResolvedValue({
+      choices: [
+        {
+          finish_reason: 'tool_use',
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [
+              {
+                id: '1',
+                type: 'function',
+                index: 0,
+                function: {
+                  name: 'record_commitments',
+                  arguments: {
+                    title: 'Token policy',
+                    owner: 'Maya',
+                    appliesTo: ['PLAT-142'],
+                    commitments: [
+                      {
+                        kind: 'stated',
+                        summary: 'Daily rotation',
+                        quote: 'Refresh tokens rotate every 24 hours.',
+                      },
+                      {
+                        kind: 'requires_done',
+                        summary: 'Tests first',
+                        quote: 'PLAT-142 must not ship until PLAT-139 is Done.',
+                        issueKey: 'PLAT-139',
+                      },
+                      { kind: 'stated', summary: 'Invented', quote: 'Sessions never expire.' },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('drafts as the caller and rejects ungrounded proposals', async () => {
+    const result = await draftCommitments({ pageId: '2001' });
+    expect(result.model).toBe('claude-sonnet-5');
+    expect(result.draft.accepted.map((rule) => rule.kind)).toEqual(['stated', 'requires_done']);
+    expect(result.draft.rejected).toHaveLength(1);
+    const prompt = JSON.stringify(mocks.chat.mock.calls[0][0]);
+    expect(prompt).toContain('untrusted data');
+    expect(mocks.asApp).not.toHaveBeenCalled();
+  });
+
+  it('stores confirmed commitments on the page, never in Jira', async () => {
+    const { draft, pageVersion } = await draftCommitments({ pageId: '2001' });
+    await confirmCommitments({
+      pageId: '2001',
+      pageVersion,
+      title: draft.title,
+      owner: draft.owner,
+      appliesTo: draft.appliesTo,
+      rules: draft.accepted,
+    });
+    expect(property.key).toBe('accord-commitments');
+    expect(property.value.confirmations[0]).toMatchObject({ pageVersion: 2 });
+    expect(mocks.jira).not.toHaveBeenCalled();
+  });
+
+  it('refuses to confirm against a page that moved on', async () => {
+    const { draft } = await draftCommitments({ pageId: '2001' });
+    await expect(
+      confirmCommitments({
+        pageId: '2001',
+        pageVersion: 1,
+        title: draft.title,
+        owner: draft.owner,
+        appliesTo: draft.appliesTo,
+        rules: draft.accepted,
+      }),
+    ).rejects.toThrow(/changed while you were reviewing/);
+    expect(property).toBeNull();
+  });
+
+  it('refuses an edited quote that is not on the page', async () => {
+    await expect(
+      confirmCommitments({
+        pageId: '2001',
+        pageVersion: 2,
+        title: 'Token policy',
+        owner: 'Maya',
+        appliesTo: ['PLAT-142'],
+        rules: [{ id: 'x', kind: 'stated', summary: 'Weekly', quote: 'Tokens rotate weekly.' }],
+      }),
+    ).rejects.toThrow(/not on the current page/);
   });
 });

@@ -3,7 +3,15 @@ import { z } from 'zod';
 import { assess, findSmallestSafeScope, snapshotId } from '../domain/engine';
 import { issueKey } from '../domain/schema';
 import { contractChanges } from '../domain/changes';
-import { adoptBaseline, configure, loadSnapshot, recordDecision } from './service';
+import {
+  adoptBaseline,
+  configure,
+  confirmCommitments,
+  draftCommitments,
+  loadSnapshot,
+  recordDecision,
+} from './service';
+import { createSampleRelease, listSampleTargets } from './sample';
 import { loadHistory } from './history';
 
 const resolver = new Resolver();
@@ -26,6 +34,10 @@ resolver.define('adoptBaseline', async ({ payload, context }) => {
   const { anchorIssue } = anchorSchema.parse(payload);
   return adoptBaseline(anchorIssue, payload.input, context.siteUrl);
 });
+resolver.define('draftCommitments', async ({ payload }) => draftCommitments(payload));
+resolver.define('confirmCommitments', async ({ payload }) => confirmCommitments(payload));
+resolver.define('listSampleTargets', async () => listSampleTargets());
+resolver.define('createSampleRelease', async ({ payload }) => createSampleRelease(payload));
 export const handler = resolver.getDefinitions();
 
 /** Rovo/MCP actions are read-only. Human writes remain in the review UI. */
@@ -88,5 +100,14 @@ export async function inspectDecisionChange(payload: { anchorIssue?: string; pag
     currentExcerpt: decision.currentExcerpt,
     changes: contractChanges(decision.contract, decision.currentContract),
     note: 'Changes to an explicit contract are observable differences, not an automatic semantic verdict. A human must inspect the full source before adopting a baseline. This action is read-only.',
+  };
+}
+
+/** Proposes grounded commitments for one page. Read-only: nothing is confirmed or saved. */
+export async function draftPageCommitments(payload: { pageId?: string }) {
+  const result = await draftCommitments({ pageId: payload.pageId });
+  return {
+    ...result,
+    note: 'A draft only. Every accepted commitment quotes the page verbatim; rejected proposals are listed with a reason. A human must confirm commitments in Accord before they are checked.',
   };
 }

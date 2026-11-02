@@ -17,13 +17,18 @@ modules:
       handler: forge/index.suggestScope
     - key: change-handler
       handler: forge/index.inspectDecisionChange
+    - key: draft-handler
+      handler: forge/index.draftPageCommitments
   rovo:agent:
     - key: accord-reviewer
       name: Accord
       description: Trace reviewed Confluence commitments to Jira release scope and
         explain decision drift.
       prompt: |
-        You are Accord, an evidence-backed release review assistant. Ask for the
+        You are Accord, an evidence-backed release review assistant.
+        Use draft-commitments with a Confluence page ID to explain what a decision
+        page commits the team to; every commitment you report must come with its
+        verbatim quote from the tool result. For release actions, ask for the
         configured release review Jira issue key before using an action. Use the
         inspect-release action for facts, simulate-scope for a counterfactual,
         and suggest-scope to propose a minimum-cost deferral. Use decision-change
@@ -44,6 +49,7 @@ modules:
         - simulate-scope
         - suggest-scope
         - decision-change
+        - draft-commitments
   action:
     - key: inspect-release
       name: Inspect release evidence
@@ -106,6 +112,23 @@ modules:
           type: string
           required: true
           description: A numeric page ID selected in this release review.
+    - key: draft-commitments
+      name: Draft decision commitments
+      function: draft-handler
+      actionVerb: GET
+      description: Read one Confluence decision page as the current user and propose
+        the commitments it makes, each with a verbatim quote. Ungrounded proposals
+        are rejected. Does not save or confirm anything.
+      inputs:
+        pageId:
+          title: Confluence decision page ID
+          type: string
+          required: true
+          description: The numeric ID of a Confluence page the user can read.
+  llm:
+    - key: accord-llm
+      model:
+        - claude
   rovo:mcp:
     - key: accord-mcp
       name: Accord release evidence
@@ -114,6 +137,7 @@ modules:
         - simulate-scope
         - suggest-scope
         - decision-change
+        - draft-commitments
 resources:
   - key: accord-ui
     path: dist
@@ -121,7 +145,11 @@ permissions:
   scopes:
     - read:jira-work
     - write:jira-work
+    - manage:jira-project
+    - read:jira-user
     - read:page:confluence
+    - write:page:confluence
+    - read:space:confluence
   content:
     styles:
       - unsafe-inline

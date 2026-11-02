@@ -10,7 +10,12 @@ import {
 } from '../domain/schema';
 import { assess, buildDecisionText, snapshotId, snapshotToken } from '../domain/engine';
 import { parseContract } from '../domain/contracts';
+import { confirmedContract } from '../domain/draft';
+import { storageToText } from '../domain/text';
+import type { Contract, Rule } from '../domain/schema';
 import { findRecordedRequest, reviewPropertyKey } from './history';
+import { contractAt, readConfirmations, saveConfirmation } from './commitments';
+import { draftWithModel } from './llm';
 
 const propertyKey = 'accord.configuration.v1';
 const storedSchema = z.object({
@@ -59,6 +64,23 @@ async function getPage(pageId: string, version?: number) {
   return jsonResponse(response, 'Confluence');
 }
 
+function legacyContract(storage: string): Contract | null {
+  try {
+    return parseContract(storage);
+  } catch {
+    return null;
+  }
+}
+
+/** Confirmed commitments for one page version: page property first, legacy JSON block second. */
+async function commitmentsFor(
+  page: any,
+  confirmations: Awaited<ReturnType<typeof readConfirmations>>,
+): Promise<Contract | null> {
+  const version = z.number().int().positive().parse(page.version?.number);
+  return contractAt(confirmations, version) ?? legacyContract(page.body?.storage?.value ?? '');
+}
+
 async function getStored(anchor: string): Promise<Stored> {
   issueKey.parse(anchor);
   const response = await api
@@ -80,7 +102,10 @@ export async function configure(input: unknown) {
   const baselines: Stored['baselines'] = [];
   for (const pageId of [...new Set(configuration.pageIds)]) {
     const page = await getPage(pageId);
-    parseContract(page.body?.storage?.value ?? '');
+    if (!(await commitmentsFor(page, await readConfirmations(pageId))))
+      throw new Error(
+        `Confirm the commitments on page ${pageId} first (Settings → Add a decision page).`,
+      );
     baselines.push({ pageId, version: z.number().int().positive().parse(page.version?.number) });
   }
   const response = await api
@@ -95,6 +120,15 @@ export async function configure(input: unknown) {
       `Could not save the review baseline (HTTP ${response.status}). Jira edit permission is required.`,
     );
   return { anchorIssue: configuration.anchorIssue };
+}
+
+function firstSentence(text: string): string {
+  return (
+    text
+      .split('\n')
+      .find((line) => line.length > 20)
+      ?.slice(0, 300) ?? text.slice(0, 300)
+  );
 }
 
 function mapIssue(raw: any, inScope: boolean, siteUrl: string): Issue {
@@ -134,14 +168,17 @@ export async function loadSnapshot(anchor: string, siteUrl: string): Promise<Sna
   for (const baseline of stored.baselines) {
     try {
       const page = await getPage(baseline.pageId);
-      const current = parseContract(page.body?.storage?.value ?? '');
+      const confirmations = await readConfirmations(baseline.pageId);
       const reviewedPage =
         page.version?.number === baseline.version
           ? page
           : await getPage(baseline.pageId, baseline.version);
       if (reviewedPage.version?.number !== baseline.version)
         throw new Error('Historical version mismatch.');
-      const reviewedContract = parseContract(reviewedPage.body?.storage?.value ?? '');
+      const reviewedContract = await commitmentsFor(reviewedPage, confirmations);
+      if (!reviewedContract) throw new Error('No confirmed commitments for the reviewed version.');
+      const current = await commitmentsFor(page, confirmations);
+      const currentText = storageToText(page.body?.storage?.value ?? '');
       decisions.push({
         id: baseline.pageId,
         pageId: baseline.pageId,
@@ -151,9 +188,11 @@ export async function loadSnapshot(anchor: string, siteUrl: string): Promise<Sna
         reviewedVersion: baseline.version,
         currentVersion: z.number().int().positive().parse(page.version?.number),
         reviewedExcerpt: reviewedContract.rationale,
-        currentExcerpt: current.rationale,
-        currentAppliesTo: current.appliesTo,
-        currentContract: current,
+        currentExcerpt: current?.rationale ?? firstSentence(currentText),
+        currentAppliesTo: current?.appliesTo,
+        ...(current ? { currentContract: current } : {}),
+        reviewedText: storageToText(reviewedPage.body?.storage?.value ?? ''),
+        currentText,
         updated: page.version?.createdAt ?? '',
         accessible: true,
         contract: reviewedContract,
@@ -376,4 +415,46 @@ export async function adoptBaseline(anchor: string, input: unknown, siteUrl: str
       `Could not adopt the baseline (HTTP ${response.status}). Jira edit permission is required.`,
     );
   return { pageId: decision.pageId, reviewedVersion: decision.currentVersion };
+}
+
+/** Reads a decision page as the caller and asks the model to propose grounded commitments. */
+export async function draftCommitments(input: unknown) {
+  const { pageId } = z.object({ pageId: z.string().regex(/^\d+$/).max(40) }).parse(input);
+  const page = await getPage(pageId);
+  const text = storageToText(page.body?.storage?.value ?? '');
+  if (text.length < 20) throw new Error('This page has too little text to draft commitments.');
+  const { model, draft } = await draftWithModel(String(page.title ?? 'Decision'), text);
+  const existing = await commitmentsFor(page, await readConfirmations(pageId));
+  return {
+    pageId,
+    pageVersion: z.number().int().positive().parse(page.version?.number),
+    pageTitle: String(page.title ?? ''),
+    model,
+    draft,
+    existing,
+  };
+}
+
+/** Saves human-confirmed commitments on the page, only if every quote is on that exact version. */
+export async function confirmCommitments(input: unknown) {
+  const validated = z
+    .object({
+      pageId: z.string().regex(/^\d+$/).max(40),
+      pageVersion: z.number().int().positive(),
+      title: z.string().min(1).max(160),
+      owner: z.string().min(1).max(100),
+      appliesTo: z.array(issueKey).min(1).max(50),
+      rules: z.array(z.unknown()).min(1).max(20),
+    })
+    .strict()
+    .parse(input);
+  const page = await getPage(validated.pageId);
+  if (page.version?.number !== validated.pageVersion)
+    throw new Error('The decision page changed while you were reviewing. Draft again.');
+  const contract = confirmedContract(
+    { ...validated, rules: validated.rules as Rule[] },
+    storageToText(page.body?.storage?.value ?? ''),
+  );
+  await saveConfirmation(validated.pageId, validated.pageVersion, contract);
+  return { pageId: validated.pageId, pageVersion: validated.pageVersion, contract };
 }
