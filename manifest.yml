@@ -75,6 +75,8 @@ modules:
         - suggest-scope
         - decision-change
         - draft-commitments
+      skills:
+        - accord-release-review
   action:
     - key: inspect-release
       name: Inspect release evidence
@@ -154,6 +156,17 @@ modules:
     - key: accord-llm
       model:
         - claude
+  rovo:skill:
+    - key: accord-release-review
+      source:
+        dir: skills/accord-release-review
+      dependencies:
+        tools:
+          - inspect-release
+          - decision-change
+          - simulate-scope
+          - suggest-scope
+          - draft-commitments
   rovo:mcp:
     - key: accord-mcp
       name: Accord release evidence

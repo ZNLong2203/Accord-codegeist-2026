@@ -24,6 +24,16 @@ All actions declare `actionVerb: GET`, call product APIs as the user, and are
 read-only. They cannot save a baseline, write comments, edit Jira, or approve a
 deployment. Decision recording is a separate explicit UI workflow.
 
+## Reusable skill
+
+[`skills/accord-release-review/SKILL.md`](../skills/accord-release-review/SKILL.md)
+describes the review workflow: inspect, explain each changed decision, simulate
+the smallest deferral and cite the snapshot. The manifest registers it as the
+`rovo:skill` module `accord-release-review`, depending on the five actions, and
+the Accord agent uses it. Other Rovo agents can reuse it. The same file is an open
+skill for third-party agents connected through the Atlassian MCP endpoint: add the
+directory to the agent's skills and connect the Accord MCP server.
+
 ## Agent behavior
 
 The agent asks for the configured Jira review issue, calls a tool for evidence,
