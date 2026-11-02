@@ -12,6 +12,7 @@ export function SampleReleaseCard({ onCreated }: { onCreated: (anchor: string) =
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(!isLive);
   const [result, setResult] = useState<{ anchorIssue: string; warnings: string[] } | null>(null);
 
   useEffect(() => {
@@ -21,8 +22,12 @@ export function SampleReleaseCard({ onCreated }: { onCreated: (anchor: string) =
         setTargets(value);
         setProject(value.projects[0]?.key ?? '');
         setSpace(value.spaces[0]?.key ?? '');
+        setLoaded(true);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Could not list your projects.'));
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Could not list your projects.');
+        setLoaded(true);
+      });
   }, []);
 
   async function create() {
@@ -76,7 +81,12 @@ export function SampleReleaseCard({ onCreated }: { onCreated: (anchor: string) =
           <div className="sample-targets">
             <label className="form-field">
               <span>Jira project</span>
-              <select value={project} onChange={(e) => setProject(e.target.value)}>
+              <select
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+                disabled={!loaded}
+              >
+                {!loaded && <option>Loading projects…</option>}
                 {targets?.projects.map((item) => (
                   <option key={item.key} value={item.key}>
                     {item.name} ({item.key})
@@ -86,7 +96,8 @@ export function SampleReleaseCard({ onCreated }: { onCreated: (anchor: string) =
             </label>
             <label className="form-field">
               <span>Confluence space</span>
-              <select value={space} onChange={(e) => setSpace(e.target.value)}>
+              <select value={space} onChange={(e) => setSpace(e.target.value)} disabled={!loaded}>
+                {!loaded && <option>Loading spaces…</option>}
                 {targets?.spaces.map((item) => (
                   <option key={item.key} value={item.key}>
                     {item.name} ({item.key})

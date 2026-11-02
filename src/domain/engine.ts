@@ -262,13 +262,18 @@ function versionFindings(
           {
             label: `Confirmed in v${decision.reviewedVersion}`,
             detail: `“${rule.quote}”`,
+            url: decision.url,
           },
           {
             label: `Now in v${decision.currentVersion}`,
             detail: replacement ? `“${replacement}”` : 'Sentence removed.',
             url: decision.url,
           },
-          ...keys.map((key) => ({ label: 'Work built on it', detail: status(key) })),
+          ...keys.map((key) => ({
+            label: 'Work built on it',
+            detail: status(key),
+            url: snapshot.issues.find((issue) => issue.key === key)?.url,
+          })),
         ],
         remedy: done.length
           ? 'Check whether the finished work still matches the decision, then re-confirm the commitments or reopen the work.'
